@@ -49,6 +49,7 @@ class TrainingOSApp:
         print(" 10. Voir mon récap intelligent")
         print(" 11. Voir catalogue des exercices")
         print(" 12. 📊 Dashboard stats (navigateur)")
+        print(" 13. 🏃 Historique HIIT")
         print("  0. Quitter")
         print("═" * 60)
         print()
@@ -56,7 +57,7 @@ class TrainingOSApp:
     def run(self):
         while True:
             self.afficher_menu_principal()
-            choix = input("Ton choix (0-11) → ").strip().lower()
+            choix = input("Ton choix (0-13) → ").strip().lower()
 
             if choix == "1":
                 self.log_seance_aujourdhui()
@@ -82,6 +83,8 @@ class TrainingOSApp:
                 self.voir_catalogue_exercices()
             elif choix == "12":
                 self.voir_dashboard_stats()
+            elif choix == "13":
+                self.voir_historique_hiit()
             elif choix in ("0", "q", "quit", "exit"):
                 print("\nGarde la promesse que tu t'es fait à toi même, lock n loaded !\n")
                 sys.exit(0)
@@ -111,6 +114,10 @@ class TrainingOSApp:
             if "HIIT" in today_session:
                 week = get_current_week()
                 print(f"🏃 HIIT DU JOUR  (Semaine {week})\n   " + get_hiit_str(week))
+                reponse = input("\nAs-tu fait ton HIIT ? (o/n) → ").strip().lower()
+                if reponse in ("o", "oui", "y", "yes"):
+                    from log_workout import log_hiit_session
+                    log_hiit_session(week)
             else:
                 emoji = "🧘" if today_session == "Yoga" else "😴"
                 print(f"{emoji} Jour de {today_session.lower()} – récupération")
@@ -417,3 +424,7 @@ class TrainingOSApp:
 
     def voir_dashboard_stats(self):
         generate_dashboard()
+
+    def voir_historique_hiit(self):
+        from log_workout import show_hiit_history
+        show_hiit_history()

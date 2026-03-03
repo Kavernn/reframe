@@ -177,3 +177,106 @@ def show_exercise_history(exercise: str, weights: dict, max_entries: int = 8):
     print("─" * 70)
     if len(data["history"]) > max_entries:
         print(f"... et {len(data['history']) - max_entries} plus anciennes")
+
+def log_hiit_session(week: int) -> dict:
+    """Log une séance HIIT avec performance et commentaire."""
+    from hiit import get_hiit_str
+    from datetime import datetime
+    import json
+    from pathlib import Path
+
+    HIIT_FILE = Path("data/hiit_log.json")
+
+    print(f"\n{'═' * 60}")
+    print(f"  LOG HIIT – Semaine {week}")
+    print(f"  Programme : {get_hiit_str(week)}")
+    print(f"{'═' * 60}\n")
+
+    # Rounds complétés
+    rounds_str = input("Rounds complétés (Entrée = programme complet) → ").strip()
+    from hiit import get_hiit
+    planned_rounds = get_hiit(week)["rounds"]
+    rounds = int(rounds_str) if rounds_str.isdigit() else planned_rounds
+
+    # Vitesse max atteinte
+    speed_str = input("Vitesse max atteinte (km/h, Entrée=skip) → ").strip()
+    speed = speed_str.replace(",", ".") if speed_str else None
+
+    # RPE
+    rpe_str = input("RPE (1-10) → ").strip()
+    rpe = int(rpe_str) if rpe_str.isdigit() and 1 <= int(rpe_str) <= 10 else None
+
+    # Ressenti
+    print("\nRessenti global :")
+    print("  1. Facile 😎")
+    print("  2. Correct 💪")
+    print("  3. Difficile 😤")
+    print("  4. Épuisant 💀")
+    feeling_map = {"1": "Facile 😎", "2": "Correct 💪", "3": "Difficile 😤", "4": "Épuisant 💀"}
+    feeling_input = input("Ton choix (1-4) → ").strip()
+    feeling = feeling_map.get(feeling_input, "—")
+
+    # Commentaire libre
+    comment = input("\nCommentaire libre (Entrée=rien) → ").strip()
+
+    # Construction de l'entrée
+    entry = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "week": week,
+        "programme": get_hiit_str(week),
+        "rounds_planifiés": planned_rounds,
+        "rounds_complétés": rounds,
+        "vitesse_max": speed,
+        "rpe": rpe,
+        "feeling": feeling,
+        "comment": comment
+    }
+
+    # Chargement + sauvegarde
+    if HIIT_FILE.exists():
+        with open(HIIT_FILE, "r", encoding="utf-8") as f:
+            hiit_log = json.load(f)
+    else:
+        HIIT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        hiit_log = []
+
+    hiit_log.insert(0, entry)
+
+    with open(HIIT_FILE, "w", encoding="utf-8") as f:
+        json.dump(hiit_log, f, indent=2, ensure_ascii=False)
+
+    print(f"\n✅ HIIT loggué ! ({rounds}/{planned_rounds} rounds – {feeling})")
+    return entry
+
+
+def show_hiit_history(max_entries: int = 10):
+    """Affiche l'historique des séances HIIT."""
+    from pathlib import Path
+    import json
+
+    HIIT_FILE = Path("data/hiit_log.json")
+
+    if not HIIT_FILE.exists():
+        print("\nAucun HIIT loggué pour l'instant.")
+        return
+
+    with open(HIIT_FILE, "r", encoding="utf-8") as f:
+        hiit_log = json.load(f)
+
+    if not hiit_log:
+        print("\nAucun HIIT loggué pour l'instant.")
+        return
+
+    print(f"\n{'═' * 75}")
+    print(f"  HISTORIQUE HIIT")
+    print(f"{'═' * 75}")
+    print(f"{'Date':<12} {'S.':<4} {'Rounds':<10} {'Vitesse':<10} {'RPE':<5} {'Feeling':<15} Commentaire")
+    print("─" * 75)
+
+    for entry in hiit_log[:max_entries]:
+        rounds = f"{entry['rounds_complétés']}/{entry['rounds_planifiés']}"
+        speed  = f"{entry['vitesse_max']} km/h" if entry.get('vitesse_max') else "—"
+        rpe    = str(entry['rpe']) if entry.get('rpe') else "—"
+        print(f"{entry['date']:<12} {entry['week']:<4} {rounds:<10} {speed:<10} {rpe:<5} {entry['feeling']:<15} {entry.get('comment', '—')}")
+
+    print("─" * 75)

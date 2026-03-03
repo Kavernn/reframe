@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import datetime
 
 DATA_FILE = Path("data/weights.json")
+HIIT_FILE = Path("data/hiit_log.json")
 
 
 def load_weights() -> dict:
@@ -16,10 +17,15 @@ def load_weights() -> dict:
         return json.load(f)
 
 
-def compute_volume_par_seance(weights: dict) -> list[dict]:
-    """Volume total par date : somme(poids × reps) pour tous les exos loggués ce jour."""
-    volume_par_date = defaultdict(float)
+def load_hiit_log() -> list:
+    if not HIIT_FILE.exists():
+        return []
+    with open(HIIT_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
+
+def compute_volume_par_seance(weights: dict) -> list[dict]:
+    volume_par_date = defaultdict(float)
     for ex, data in weights.items():
         if ex == "sessions":
             continue
@@ -33,15 +39,12 @@ def compute_volume_par_seance(weights: dict) -> list[dict]:
                 volume_par_date[date] += volume
             except:
                 continue
-
     return [{"date": d, "volume": round(v, 1)}
             for d, v in sorted(volume_par_date.items())]
 
 
 def compute_frequence_par_semaine(weights: dict) -> list[dict]:
-    """Nombre de séances distinctes par semaine."""
     seances_par_semaine = defaultdict(set)
-
     for ex, data in weights.items():
         if ex == "sessions":
             continue
@@ -53,15 +56,12 @@ def compute_frequence_par_semaine(weights: dict) -> list[dict]:
                 seances_par_semaine[semaine].add(date_str)
             except:
                 continue
-
     return [{"semaine": s, "seances": len(days)}
             for s, days in sorted(seances_par_semaine.items())]
 
 
 def compute_volume_par_semaine(volume_par_seance: list[dict]) -> list[dict]:
-    """Regroupe le volume par semaine pour la comparaison."""
     volume_semaine = defaultdict(float)
-
     for entry in volume_par_seance:
         try:
             d = datetime.strptime(entry["date"], "%Y-%m-%d")
@@ -69,30 +69,56 @@ def compute_volume_par_semaine(volume_par_seance: list[dict]) -> list[dict]:
             volume_semaine[semaine] += entry["volume"]
         except:
             continue
-
     return [{"semaine": s, "volume": round(v, 1)}
             for s, v in sorted(volume_semaine.items())]
 
 
+def compute_hiit_rpe(hiit_log: list) -> list[dict]:
+    return [
+        {"date": e["date"], "rpe": e["rpe"]}
+        for e in hiit_log if e.get("rpe")
+    ]
+
+
+def compute_hiit_rounds(hiit_log: list) -> list[dict]:
+    return [
+        {
+            "date": e["date"],
+            "completes": e["rounds_complétés"],
+            "planifies": e["rounds_planifiés"]
+        }
+        for e in hiit_log
+    ]
+
+
 def generate_dashboard():
     weights = load_weights()
+    hiit_log = load_hiit_log()
 
-    if not weights or all(k == "sessions" for k in weights):
+    if not weights and not hiit_log:
         print("\nPas encore assez de données pour générer des stats.")
         print("Logge quelques séances d'abord ! 💪")
         return
 
-    volume_seance = compute_volume_par_seance(weights)
-    frequence = compute_frequence_par_semaine(weights)
+    volume_seance  = compute_volume_par_seance(weights)
+    frequence      = compute_frequence_par_semaine(weights)
     volume_semaine = compute_volume_par_semaine(volume_seance)
 
-    # Données JS
-    vol_dates   = [e["date"]    for e in volume_seance]
-    vol_vals    = [e["volume"]  for e in volume_seance]
-    freq_labels = [e["semaine"] for e in frequence]
-    freq_vals   = [e["seances"] for e in frequence]
-    vsem_labels = [e["semaine"] for e in volume_semaine]
-    vsem_vals   = [e["volume"]  for e in volume_semaine]
+    hiit_log_sorted = sorted(hiit_log, key=lambda x: x["date"])
+    hiit_rpe        = compute_hiit_rpe(hiit_log_sorted)
+    hiit_rounds     = compute_hiit_rounds(hiit_log_sorted)
+
+    vol_dates      = [e["date"]      for e in volume_seance]
+    vol_vals       = [e["volume"]    for e in volume_seance]
+    freq_labels    = [e["semaine"]   for e in frequence]
+    freq_vals      = [e["seances"]   for e in frequence]
+    vsem_labels    = [e["semaine"]   for e in volume_semaine]
+    vsem_vals      = [e["volume"]    for e in volume_semaine]
+    hiit_dates     = [e["date"]      for e in hiit_rpe]
+    hiit_rpe_vals  = [e["rpe"]       for e in hiit_rpe]
+    hiit_rdates    = [e["date"]      for e in hiit_rounds]
+    hiit_completed = [e["completes"] for e in hiit_rounds]
+    hiit_planned   = [e["planifies"] for e in hiit_rounds]
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -168,6 +194,16 @@ def generate_dashboard():
       <canvas id="volumeSemaine"></canvas>
     </div>
 
+    <div class="card">
+      <h2>🏃 HIIT – RPE dans le temps</h2>
+      <canvas id="hiitRpe"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>🔄 HIIT – Rounds complétés vs planifiés</h2>
+      <canvas id="hiitRounds"></canvas>
+    </div>
+
   </div>
 
   <script>
@@ -234,11 +270,66 @@ def generate_dashboard():
       }},
       options: {{ ...defaults }}
     }});
+
+    // HIIT RPE
+    new Chart(document.getElementById('hiitRpe'), {{
+      type: 'line',
+      data: {{
+        labels: {hiit_dates},
+        datasets: [{{
+          data: {hiit_rpe_vals},
+          borderColor: orange,
+          backgroundColor: orange + '22',
+          borderWidth: 2,
+          pointBackgroundColor: orange,
+          pointRadius: 5,
+          fill: true,
+          tension: 0.3
+        }}]
+      }},
+      options: {{
+        ...defaults,
+        scales: {{
+          x: {{ ticks: {{ color: '#888' }}, grid: {{ color: '#222' }} }},
+          y: {{ min: 1, max: 10, ticks: {{ color: '#888', stepSize: 1 }}, grid: {{ color: '#222' }} }}
+        }}
+      }}
+    }});
+
+    // HIIT Rounds complétés vs planifiés
+    new Chart(document.getElementById('hiitRounds'), {{
+      type: 'bar',
+      data: {{
+        labels: {hiit_rdates},
+        datasets: [
+          {{
+            label: 'Planifiés',
+            data: {hiit_planned},
+            backgroundColor: blue + '44',
+            borderColor: blue,
+            borderWidth: 1,
+            borderRadius: 4
+          }},
+          {{
+            label: 'Complétés',
+            data: {hiit_completed},
+            backgroundColor: green + '99',
+            borderColor: green,
+            borderWidth: 1,
+            borderRadius: 4
+          }}
+        ]
+      }},
+      options: {{
+        ...defaults,
+        plugins: {{ legend: {{ display: true, labels: {{ color: '#888' }} }} }}
+      }}
+    }});
+
   </script>
 </body>
 </html>"""
 
-    # Sauvegarde et ouvre dans le navigateur
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".html", delete=False,
         encoding="utf-8", prefix="trainingOS_stats_"
