@@ -20,7 +20,7 @@ def load_weights() -> Dict[str, Any]:
             data = json.load(f)
         return data if isinstance(data, dict) else {"sessions": {}}
     except:
-        return {"sessions": {}}
+        return {}
 
 def save_weights(weights: Dict[str, Any]):
     try:

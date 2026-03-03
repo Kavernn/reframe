@@ -73,6 +73,18 @@ def compute_volume_par_semaine(volume_par_seance: list[dict]) -> list[dict]:
             for s, v in sorted(volume_semaine.items())]
 
 
+def compute_rpe_par_seance() -> list[dict]:
+    """Charge les RPE depuis sessions.json."""
+    from sessions import load_sessions
+    sessions = load_sessions()
+    result = []
+    for date_key in sorted(sessions.keys()):
+        s = sessions[date_key]
+        if s.get("rpe"):
+            result.append({"date": date_key, "rpe": s["rpe"]})
+    return result
+
+
 def compute_hiit_rpe(hiit_log: list) -> list[dict]:
     return [
         {"date": e["date"], "rpe": e["rpe"]}
@@ -83,7 +95,7 @@ def compute_hiit_rpe(hiit_log: list) -> list[dict]:
 def compute_hiit_rounds(hiit_log: list) -> list[dict]:
     return [
         {
-            "date": e["date"],
+            "date":      e["date"],
             "completes": e["rounds_complétés"],
             "planifies": e["rounds_planifiés"]
         }
@@ -92,7 +104,7 @@ def compute_hiit_rounds(hiit_log: list) -> list[dict]:
 
 
 def generate_dashboard():
-    weights = load_weights()
+    weights  = load_weights()
     hiit_log = load_hiit_log()
 
     if not weights and not hiit_log:
@@ -103,6 +115,7 @@ def generate_dashboard():
     volume_seance  = compute_volume_par_seance(weights)
     frequence      = compute_frequence_par_semaine(weights)
     volume_semaine = compute_volume_par_semaine(volume_seance)
+    rpe_seances    = compute_rpe_par_seance()
 
     hiit_log_sorted = sorted(hiit_log, key=lambda x: x["date"])
     hiit_rpe        = compute_hiit_rpe(hiit_log_sorted)
@@ -114,6 +127,8 @@ def generate_dashboard():
     freq_vals      = [e["seances"]   for e in frequence]
     vsem_labels    = [e["semaine"]   for e in volume_semaine]
     vsem_vals      = [e["volume"]    for e in volume_semaine]
+    rpe_dates      = [e["date"]      for e in rpe_seances]
+    rpe_vals       = [e["rpe"]       for e in rpe_seances]
     hiit_dates     = [e["date"]      for e in hiit_rpe]
     hiit_rpe_vals  = [e["rpe"]       for e in hiit_rpe]
     hiit_rdates    = [e["date"]      for e in hiit_rounds]
@@ -194,6 +209,11 @@ def generate_dashboard():
       <canvas id="volumeSemaine"></canvas>
     </div>
 
+    <div class="card wide">
+      <h2>🎯 RPE des séances muscu dans le temps</h2>
+      <canvas id="rpeSeances"></canvas>
+    </div>
+
     <div class="card">
       <h2>🏃 HIIT – RPE dans le temps</h2>
       <canvas id="hiitRpe"></canvas>
@@ -210,6 +230,7 @@ def generate_dashboard():
     const orange = '#f97316';
     const blue   = '#3b82f6';
     const green  = '#22c55e';
+    const purple = '#a855f7';
 
     const defaults = {{
       responsive: true,
@@ -217,6 +238,14 @@ def generate_dashboard():
       scales: {{
         x: {{ ticks: {{ color: '#888' }}, grid: {{ color: '#222' }} }},
         y: {{ ticks: {{ color: '#888' }}, grid: {{ color: '#222' }} }}
+      }}
+    }};
+
+    const rpeScale = {{
+      ...defaults,
+      scales: {{
+        x: {{ ticks: {{ color: '#888' }}, grid: {{ color: '#222' }} }},
+        y: {{ min: 1, max: 10, ticks: {{ color: '#888', stepSize: 1 }}, grid: {{ color: '#222' }} }}
       }}
     }};
 
@@ -271,6 +300,25 @@ def generate_dashboard():
       options: {{ ...defaults }}
     }});
 
+    // RPE séances muscu
+    new Chart(document.getElementById('rpeSeances'), {{
+      type: 'line',
+      data: {{
+        labels: {rpe_dates},
+        datasets: [{{
+          data: {rpe_vals},
+          borderColor: purple,
+          backgroundColor: purple + '22',
+          borderWidth: 2,
+          pointBackgroundColor: purple,
+          pointRadius: 5,
+          fill: true,
+          tension: 0.3
+        }}]
+      }},
+      options: {{ ...rpeScale }}
+    }});
+
     // HIIT RPE
     new Chart(document.getElementById('hiitRpe'), {{
       type: 'line',
@@ -287,16 +335,10 @@ def generate_dashboard():
           tension: 0.3
         }}]
       }},
-      options: {{
-        ...defaults,
-        scales: {{
-          x: {{ ticks: {{ color: '#888' }}, grid: {{ color: '#222' }} }},
-          y: {{ min: 1, max: 10, ticks: {{ color: '#888', stepSize: 1 }}, grid: {{ color: '#222' }} }}
-        }}
-      }}
+      options: {{ ...rpeScale }}
     }});
 
-    // HIIT Rounds complétés vs planifiés
+    // HIIT Rounds
     new Chart(document.getElementById('hiitRounds'), {{
       type: 'bar',
       data: {{

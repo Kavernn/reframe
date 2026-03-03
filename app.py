@@ -9,6 +9,7 @@ from log_workout import load_weights, save_weights, log_single_exercise, show_ex
 from inventory import load_inventory, add_exercise
 from user_profile import load_user_profile
 from stats import generate_dashboard
+from sessions import load_sessions, save_sessions, log_session, get_last_sessions, migrate_sessions_from_weights
 
 
 START_DATE = date(2026, 3, 3)  # ← Change cette date si tu recommences un cycle
@@ -25,6 +26,14 @@ class TrainingOSApp:
         self.weights = load_weights()
         self.inventory = load_inventory()
         self.program = load_program()
+
+        # Migration one-shot : déplace sessions de weights.json → sessions.json
+        if "sessions" in self.weights:
+            n = migrate_sessions_from_weights(self.weights)
+            if n > 0:
+                print(f"✅ {n} sessions migrées vers sessions.json")
+            del self.weights["sessions"]
+            save_weights(self.weights)
 
     def clear_screen(self):
         print("\033[H\033[J", end="")
@@ -106,6 +115,8 @@ class TrainingOSApp:
 
     def log_seance_aujourdhui(self):
         from menu_select import selectionner
+        from sessions import log_session
+
         today_session = get_today()
         today_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -120,11 +131,15 @@ class TrainingOSApp:
                 print(f"  {item['exercise']:<25} {item['display']}")
             print()
 
+        # ── HIIT ─────────────────────────────────────────────
         if "HIIT" in today_session or today_session in ["Yoga", "Recovery"]:
             if "HIIT" in today_session:
                 week = get_current_week()
                 print(f"🏃 HIIT DU JOUR  (Semaine {week})\n   " + get_hiit_str(week))
-                reponse = selectionner("As-tu fait ton HIIT ?", ["Oui 🏃", "Non"])
+                reponse = selectionner(
+                    "As-tu fait ton HIIT ?",
+                    ["Oui 🏃", "Non"]
+                )
                 if reponse == "Oui 🏃":
                     from log_workout import log_hiit_session
                     log_hiit_session(week)
@@ -134,6 +149,7 @@ class TrainingOSApp:
             input("\nAppuie Entrée pour continuer...")
             return
 
+        # ── SÉANCE MUSCU ──────────────────────────────────────
         if today_session not in self.program:
             print("Aucun programme défini pour ce jour.")
             return
@@ -141,11 +157,13 @@ class TrainingOSApp:
         exercises = list(self.program[today_session].keys())
         print(f"Exercices prévus ({len(exercises)}) :")
         for i, ex in enumerate(exercises, 1):
-            print(f"  {i:2}. {ex}")
+            print(f"  {i:2}. {ex}  {self.program[today_session][ex]}")
         print()
 
-
-        reponse = selectionner("As-tu fait ta séance aujourd'hui ?", ["Oui 💪", "Non"])
+        reponse = selectionner(
+            "As-tu fait ta séance aujourd'hui ?",
+            ["Oui 💪", "Non, à demain"]
+        )
         if reponse != "Oui 💪":
             print("OK, à demain ! 💪")
             return
@@ -162,21 +180,16 @@ class TrainingOSApp:
             save_weights(self.weights)
             print(f"\n{faits} exos enregistrés – super boulot ! 🔥")
 
-        rpe_str = input("\nRPE global (1-10, Entrée=skip) → ").strip()
+        # ── RPE + COMMENTAIRE ─────────────────────────────────
+        print("\n" + "─" * 50)
+        rpe_str = input("RPE global (1-10, Entrée=skip) → ").strip()
         rpe = int(rpe_str) if rpe_str.isdigit() and 1 <= int(rpe_str) <= 10 else None
         comment = input("Commentaire / ressenti (Entrée=rien) → ").strip()
 
-        if rpe or comment:
-            if "sessions" not in self.weights:
-                self.weights["sessions"] = {}
-            self.weights["sessions"][today_date] = {
-                "rpe": rpe,
-                "comment": comment,
-                "exos": exercises
-            }
-            save_weights(self.weights)
-            print("Note séance sauvegardée ✓")
+        log_session(today_date, rpe, comment, exercises)
+        print("Note séance sauvegardée ✓")
 
+        # ── MESSAGE MOTIVATIONNEL ─────────────────────────────
         profile = load_user_profile()
         goal = profile.get("goal", "force")
 
@@ -240,18 +253,34 @@ class TrainingOSApp:
             show_exercise_history(exo, self.weights)
 
     def voir_notes_seances(self):
-        sessions = self.weights.get("sessions", {})
-        if not sessions:
-            print("Aucune note enregistrée pour l'instant.")
-            return
-        print("\nNOTES / RPE DES DERNIÈRES SÉANCES")
-        print("-" * 60)
-        for date_key in sorted(sessions.keys(), reverse=True)[:10]:
-            s = sessions[date_key]
-            rpe_txt = f"RPE {s['rpe']}" if s.get('rpe') else "—"
-            print(f"{date_key} | {rpe_txt} | {s.get('comment', '—')}")
-        print("-" * 60)
+        sessions = get_last_sessions(10)
 
+        if not sessions:
+            print("\nAucune note enregistrée pour l'instant.")
+            print("Logge une séance et entre ton RPE à la fin ! 💪")
+            return
+
+        print("\n" + "═" * 65)
+        print("   NOTES & RPE DES DERNIÈRES SÉANCES")
+        print("═" * 65)
+        print(f"{'Date':<12} {'RPE':<6} {'Exercices':<30} Commentaire")
+        print("─" * 65)
+
+        for s in sessions:
+            rpe_txt = f"  {s['rpe']}/10" if s.get("rpe") else "  —"
+            exos_txt = ", ".join(s.get("exos", [])) or "—"
+            if len(exos_txt) > 28:
+                exos_txt = exos_txt[:25] + "..."
+            comment = s.get("comment", "—") or "—"
+            print(f"{s['date']:<12} {rpe_txt:<6} {exos_txt:<30} {comment}")
+
+        print("─" * 65)
+
+        # Moyenne RPE
+        rpes = [s["rpe"] for s in sessions if s.get("rpe")]
+        if rpes:
+            print(f"\n  RPE moyen (dernières {len(rpes)} séances) : {sum(rpes) / len(rpes):.1f}/10")
+        print("═" * 65)
     def gerer_inventaire(self):
         from menu_select import selectionner, selectionner_exercice_inventaire
 

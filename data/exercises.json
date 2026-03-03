@@ -54,5 +54,23 @@
       "rhomboïdes",
       "trapèzes"
     ]
+  },
+  "Triceps Dips": {
+    "type": "machine",
+    "increment": 15.0,
+    "bar_weight": 0.0,
+    "default_scheme": "3x8",
+    "muscles": [
+      "triceps"
+    ]
+  },
+  "Barbell Curl": {
+    "type": "barbell",
+    "increment": 10.0,
+    "bar_weight": 0.0,
+    "default_scheme": "3x8",
+    "muscles": [
+      "biceps"
+    ]
   }
 }
