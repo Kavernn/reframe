@@ -10,6 +10,10 @@ from inventory import load_inventory, add_exercise
 from user_profile import load_user_profile
 from stats import generate_dashboard
 from sessions import load_sessions, save_sessions, log_session, get_last_sessions, migrate_sessions_from_weights
+from deload import afficher_rapport_deload, analyser_deload, load_deload_state
+from body_weight import log_body_weight, afficher_historique_poids, load_body_weight, get_tendance
+
+
 
 
 START_DATE = date(2026, 3, 3)  # ← Change cette date si tu recommences un cycle
@@ -34,6 +38,20 @@ class TrainingOSApp:
                 print(f"✅ {n} sessions migrées vers sessions.json")
             del self.weights["sessions"]
             save_weights(self.weights)
+
+            # Alerte deload au démarrage
+            self._check_deload_alerte()
+
+        def _check_deload_alerte(self):
+            """Affiche une alerte discrète si deload recommandé."""
+            from deload import analyser_deload, load_deload_state
+            state = load_deload_state()
+            rapport = analyser_deload(self.weights)
+
+            if state["active"]:
+                print(f"\n  🔄 RAPPEL : Semaine de deload en cours (depuis {state['since']})")
+            elif rapport["recommande"]:
+                print(f"\n  ⚠️  Deload recommandé – consulte l'option 15 pour les détails")
 
     def clear_screen(self):
         print("\033[H\033[J", end="")
@@ -65,6 +83,8 @@ class TrainingOSApp:
             "12. 📊 Dashboard stats (navigateur)",
             "13. 🏃 Historique HIIT",
             "14. 📋 Voir mes programmes",
+            "15. 🔄 Analyse deload",
+            "16. ⚖️  Suivi poids corporel",
             "──────────────────────────────",
             "0.  Quitter"
         ]
@@ -107,6 +127,10 @@ class TrainingOSApp:
                 self.voir_historique_hiit()
             elif choix.startswith("14."):
                 self.voir_programme_complet()
+            elif choix.startswith("15."):
+                self.voir_analyse_deload()
+            elif choix.startswith("16."):
+                self.voir_suivi_poids()
 
             input("\nAppuie sur Entrée pour revenir au menu...")
 
@@ -130,7 +154,10 @@ class TrainingOSApp:
             for item in suggestions:
                 print(f"  {item['exercise']:<25} {item['display']}")
             print()
-
+        state = load_deload_state()
+        if state["active"]:
+            print(f"  🔄 DELOAD EN COURS – utilise les poids à -15% aujourd'hui !")
+            print(f"     Depuis le {state['since']} – raison : {state['reason']}\n")
         # ── HIIT ─────────────────────────────────────────────
         if "HIIT" in today_session or today_session in ["Yoga", "Recovery"]:
             if "HIIT" in today_session:
@@ -215,6 +242,37 @@ class TrainingOSApp:
         elif today_session == "Lower":
             print("   Jour Lower : jambes et fessiers en feu – t'as tout donné !")
         print("─" * 50)
+
+    def voir_suivi_poids(self):
+        from menu_select import selectionner
+
+        while True:
+            action = selectionner(
+                "Suivi poids corporel :",
+                [
+                    "⚖️  Logger mon poids aujourd'hui",
+                    "📋 Voir l'historique",
+                ]
+            )
+
+            if not action or action == "↩ Annuler":
+                break
+
+            if action.startswith("⚖️"):
+                poids_str = input("Ton poids aujourd'hui (kg) → ").strip()
+                if not poids_str:
+                    continue
+                try:
+                    poids = float(poids_str.replace(",", "."))
+                except ValueError:
+                    print("❌ Valeur invalide.")
+                    continue
+                note = input("Note (Entrée=rien) → ").strip()
+                log_body_weight(poids, note)
+
+            elif action.startswith("📋"):
+                afficher_historique_poids()
+                input("\nAppuie sur Entrée pour continuer...")
 
     def voir_poids_recommandes(self):
         suggestions = get_suggested_weights_for_today(self.weights)
@@ -838,3 +896,6 @@ class TrainingOSApp:
                     self.program[jour][exo] = new_scheme
                     save_program(self.program)
                     print(f"✅ {exo} : {actuel} → {new_scheme}")
+
+    def voir_analyse_deload(self):
+        afficher_rapport_deload(self.weights)

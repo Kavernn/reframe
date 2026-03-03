@@ -6,7 +6,6 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 
-from pathlib import Path
 BASE_DIR  = Path(__file__).parent
 DATA_FILE = BASE_DIR / "data" / "weights.json"
 HIIT_FILE = BASE_DIR / "data" / "hiit_log.json"
@@ -26,18 +25,22 @@ def load_hiit_log() -> list:
         return json.load(f)
 
 
+# ─────────────────────────────────────────────────────────────
+# CALCULS MUSCU
+# ─────────────────────────────────────────────────────────────
+
 def compute_volume_par_seance(weights: dict) -> list[dict]:
     volume_par_date = defaultdict(float)
     for ex, data in weights.items():
         if ex == "sessions":
             continue
         for entry in data.get("history", []):
-            date = entry.get("date", "")
-            w = entry.get("weight", 0)
+            date     = entry.get("date", "")
+            w        = entry.get("weight", 0)
             reps_str = entry.get("reps", "")
             try:
                 reps_list = [int(r) for r in reps_str.split(",") if r.strip()]
-                volume = w * sum(reps_list)
+                volume    = w * sum(reps_list)
                 volume_par_date[date] += volume
             except:
                 continue
@@ -53,7 +56,7 @@ def compute_frequence_par_semaine(weights: dict) -> list[dict]:
         for entry in data.get("history", []):
             date_str = entry.get("date", "")
             try:
-                d = datetime.strptime(date_str, "%Y-%m-%d")
+                d       = datetime.strptime(date_str, "%Y-%m-%d")
                 semaine = d.strftime("%Y-S%W")
                 seances_par_semaine[semaine].add(date_str)
             except:
@@ -66,7 +69,7 @@ def compute_volume_par_semaine(volume_par_seance: list[dict]) -> list[dict]:
     volume_semaine = defaultdict(float)
     for entry in volume_par_seance:
         try:
-            d = datetime.strptime(entry["date"], "%Y-%m-%d")
+            d       = datetime.strptime(entry["date"], "%Y-%m-%d")
             semaine = d.strftime("%Y-S%W")
             volume_semaine[semaine] += entry["volume"]
         except:
@@ -76,16 +79,19 @@ def compute_volume_par_semaine(volume_par_seance: list[dict]) -> list[dict]:
 
 
 def compute_rpe_par_seance() -> list[dict]:
-    """Charge les RPE depuis sessions.json."""
     from sessions import load_sessions
     sessions = load_sessions()
-    result = []
+    result   = []
     for date_key in sorted(sessions.keys()):
         s = sessions[date_key]
         if s.get("rpe"):
             result.append({"date": date_key, "rpe": s["rpe"]})
     return result
 
+
+# ─────────────────────────────────────────────────────────────
+# CALCULS HIIT
+# ─────────────────────────────────────────────────────────────
 
 def compute_hiit_rpe(hiit_log: list) -> list[dict]:
     return [
@@ -105,6 +111,21 @@ def compute_hiit_rounds(hiit_log: list) -> list[dict]:
     ]
 
 
+# ─────────────────────────────────────────────────────────────
+# CALCULS POIDS CORPOREL
+# ─────────────────────────────────────────────────────────────
+
+def compute_courbe_poids() -> list[dict]:
+    from body_weight import load_body_weight
+    entries = load_body_weight()
+    return [{"date": e["date"], "poids": e["poids"]}
+            for e in sorted(entries, key=lambda x: x["date"])]
+
+
+# ─────────────────────────────────────────────────────────────
+# GÉNÉRATION DU DASHBOARD
+# ─────────────────────────────────────────────────────────────
+
 def generate_dashboard():
     weights  = load_weights()
     hiit_log = load_hiit_log()
@@ -114,15 +135,25 @@ def generate_dashboard():
         print("Logge quelques séances d'abord ! 💪")
         return
 
+    # Muscu
     volume_seance  = compute_volume_par_seance(weights)
     frequence      = compute_frequence_par_semaine(weights)
     volume_semaine = compute_volume_par_semaine(volume_seance)
     rpe_seances    = compute_rpe_par_seance()
 
+    # HIIT
     hiit_log_sorted = sorted(hiit_log, key=lambda x: x["date"])
     hiit_rpe        = compute_hiit_rpe(hiit_log_sorted)
     hiit_rounds     = compute_hiit_rounds(hiit_log_sorted)
 
+    # Poids corporel
+    courbe_poids = compute_courbe_poids()
+    poids_dates  = [e["date"]  for e in courbe_poids]
+    poids_vals   = [e["poids"] for e in courbe_poids]
+    min_poids    = min(poids_vals) - 2 if poids_vals else 60
+    max_poids    = max(poids_vals) + 2 if poids_vals else 100
+
+    # Listes JS
     vol_dates      = [e["date"]      for e in volume_seance]
     vol_vals       = [e["volume"]    for e in volume_seance]
     freq_labels    = [e["semaine"]   for e in frequence]
@@ -164,6 +195,16 @@ def generate_dashboard():
       margin-bottom: 40px;
       font-size: 0.9rem;
     }}
+    .section-title {{
+      grid-column: span 2;
+      color: #888;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 10px 0 4px 4px;
+      border-bottom: 1px solid #2a2a3a;
+      margin-bottom: 4px;
+    }}
     .grid {{
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -196,6 +237,9 @@ def generate_dashboard():
 
   <div class="grid">
 
+    <!-- MUSCU -->
+    <div class="section-title">🏋️ Entraînement musculaire</div>
+
     <div class="card wide">
       <h2>📊 Volume total par séance (lbs × reps)</h2>
       <canvas id="volumeSeance"></canvas>
@@ -216,6 +260,9 @@ def generate_dashboard():
       <canvas id="rpeSeances"></canvas>
     </div>
 
+    <!-- HIIT -->
+    <div class="section-title">🏃 HIIT</div>
+
     <div class="card">
       <h2>🏃 HIIT – RPE dans le temps</h2>
       <canvas id="hiitRpe"></canvas>
@@ -226,6 +273,14 @@ def generate_dashboard():
       <canvas id="hiitRounds"></canvas>
     </div>
 
+    <!-- POIDS CORPOREL -->
+    <div class="section-title">⚖️ Poids corporel</div>
+
+    <div class="card wide">
+      <h2>⚖️ Poids corporel dans le temps (kg)</h2>
+      <canvas id="poidsCorps"></canvas>
+    </div>
+
   </div>
 
   <script>
@@ -233,6 +288,7 @@ def generate_dashboard():
     const blue   = '#3b82f6';
     const green  = '#22c55e';
     const purple = '#a855f7';
+    const rose   = '#f43f5e';
 
     const defaults = {{
       responsive: true,
@@ -244,14 +300,15 @@ def generate_dashboard():
     }};
 
     const rpeScale = {{
-      ...defaults,
+      responsive: true,
+      plugins: {{ legend: {{ display: false }} }},
       scales: {{
         x: {{ ticks: {{ color: '#888' }}, grid: {{ color: '#222' }} }},
         y: {{ min: 1, max: 10, ticks: {{ color: '#888', stepSize: 1 }}, grid: {{ color: '#222' }} }}
       }}
     }};
 
-    // Volume par séance
+    // ── Volume par séance ──────────────────────────────────
     new Chart(document.getElementById('volumeSeance'), {{
       type: 'bar',
       data: {{
@@ -267,7 +324,7 @@ def generate_dashboard():
       options: {{ ...defaults }}
     }});
 
-    // Fréquence par semaine
+    // ── Fréquence par semaine ──────────────────────────────
     new Chart(document.getElementById('frequence'), {{
       type: 'bar',
       data: {{
@@ -283,7 +340,7 @@ def generate_dashboard():
       options: {{ ...defaults }}
     }});
 
-    // Volume par semaine
+    // ── Volume par semaine ─────────────────────────────────
     new Chart(document.getElementById('volumeSemaine'), {{
       type: 'line',
       data: {{
@@ -302,7 +359,7 @@ def generate_dashboard():
       options: {{ ...defaults }}
     }});
 
-    // RPE séances muscu
+    // ── RPE séances muscu ──────────────────────────────────
     new Chart(document.getElementById('rpeSeances'), {{
       type: 'line',
       data: {{
@@ -321,7 +378,7 @@ def generate_dashboard():
       options: {{ ...rpeScale }}
     }});
 
-    // HIIT RPE
+    // ── HIIT RPE ───────────────────────────────────────────
     new Chart(document.getElementById('hiitRpe'), {{
       type: 'line',
       data: {{
@@ -340,7 +397,7 @@ def generate_dashboard():
       options: {{ ...rpeScale }}
     }});
 
-    // HIIT Rounds
+    // ── HIIT Rounds ────────────────────────────────────────
     new Chart(document.getElementById('hiitRounds'), {{
       type: 'bar',
       data: {{
@@ -367,6 +424,37 @@ def generate_dashboard():
       options: {{
         ...defaults,
         plugins: {{ legend: {{ display: true, labels: {{ color: '#888' }} }} }}
+      }}
+    }});
+
+    // ── Poids corporel ─────────────────────────────────────
+    new Chart(document.getElementById('poidsCorps'), {{
+      type: 'line',
+      data: {{
+        labels: {poids_dates},
+        datasets: [{{
+          data: {poids_vals},
+          borderColor: rose,
+          backgroundColor: rose + '22',
+          borderWidth: 2,
+          pointBackgroundColor: rose,
+          pointRadius: 4,
+          fill: true,
+          tension: 0.3
+        }}]
+      }},
+      options: {{
+        responsive: true,
+        plugins: {{ legend: {{ display: false }} }},
+        scales: {{
+          x: {{ ticks: {{ color: '#888' }}, grid: {{ color: '#222' }} }},
+          y: {{
+            ticks: {{ color: '#888' }},
+            grid:  {{ color: '#222' }},
+            suggestedMin: {min_poids},
+            suggestedMax: {max_poids}
+          }}
+        }}
       }}
     }});
 
