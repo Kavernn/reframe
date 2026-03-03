@@ -1,0 +1,24 @@
+# Environnements virtuels Python
+venv/
+.venv/
+env/
+.venv
+env
+ENV/
+pyvenv.cfg
+pip-selfcheck.json
+
+# Fichiers Python cachés / compilés
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Fichiers IDE / éditeurs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs et temporaires
+*.log
+*.tmp
