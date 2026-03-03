@@ -39,6 +39,11 @@ def index():
     suggestions = get_suggested_weights_for_today(weights)
     goals = load_goals()
 
+    # --- AJOUT ICI ---
+    # On récupère l'état du deload (ex: {"active": True, "since": "2026-03-03"})
+    deload_state = load_deload_state()
+    # -----------------
+
     # Progression objectifs
     goals_progress = {}
     for ex, goal in goals.items():
@@ -51,15 +56,15 @@ def index():
         }
 
     return render_template("index.html",
-        today=get_today(),
-        week=get_current_week(),
-        profile=profile,
-        suggestions=suggestions,
-        goals=goals_progress,
-        schedule=get_week_schedule(),
-        now=datetime.now().strftime("%Y-%m-%d")
-    )
-
+                           today=get_today(),
+                           week=get_current_week(),
+                           profile=profile,
+                           suggestions=suggestions,
+                           goals=goals_progress,
+                           schedule=get_week_schedule(),
+                           deload_state=deload_state,  # <--- NE PAS OUBLIER DE LE PASSER ICI
+                           now=datetime.now().strftime("%Y-%m-%d")
+                           )
 
 @app.route("/seance")
 def seance():
@@ -275,6 +280,27 @@ def api_deload():
 # LANCEMENT
 # ─────────────────────────────────────────────────────────────
 
+import socket
+import webbrowser
+from threading import Timer
+
+def find_free_port(start_port=5000, max_port=5100):
+    for port in range(start_port, max_port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"Aucun port libre trouvé entre {start_port} et {max_port}")
+
 if __name__ == "__main__":
-    print("🚀 TrainingOS Flask démarré → http://localhost:5000")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = find_free_port()
+    url = f"http://localhost:{port}"
+    print(f"🚀 TrainingOS Flask démarré → {url}")
+
+    # Ouvre le navigateur après un petit délai
+    Timer(1.0, lambda: webbrowser.open(url)).start()
+
+    # Note : reloader désactivé pour garder le port trouvé
+    app.run(debug=True, use_reloader=False, host="0.0.0.0", port=port)

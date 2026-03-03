@@ -18,7 +18,7 @@
     <span class="badge badge-blue">Semaine {{ week }}</span>
   </div>
 
-  {% if suggestions and suggestions|length > 0 %}
+  {% if suggestions %}
   <div class="mt-16">
     <div class="card-title">Poids recommandés</div>
     <table>
@@ -38,8 +38,6 @@
       </tbody>
     </table>
   </div>
-  {% else %}
-  <p class="text-muted mt-16">Aucune suggestion pour aujourd’hui (pas de programme ou premier jour ?)</p>
   {% endif %}
 
   <div class="mt-16">
@@ -56,8 +54,8 @@
 <div class="card mb-16">
   <div class="card-title">Planning de la semaine</div>
   <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 8px;">
-    {% set jours = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] %}
-    {% for jour_abbr, seance in schedule.items() %}
+    {% set jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
+    {% for jour, seance in schedule.items() %}
     <div style="
       text-align: center;
       padding: 8px 4px;
@@ -66,7 +64,7 @@
       border: 1px solid {% if seance == today %}var(--orange){% else %}var(--border){% endif %};
     ">
       <div style="font-size: 0.65rem; color: {% if seance == today %}white{% else %}var(--muted){% endif %}; margin-bottom: 4px;">
-        {{ jour_abbr }}
+        {{ jour[:3] }}
       </div>
       <div style="font-size: 0.7rem; font-weight: 600; color: {% if seance == today %}white{% else %}var(--text){% endif %};">
         {{ seance[:6] if seance else '—' }}
@@ -77,7 +75,7 @@
 </div>
 
 <!-- OBJECTIFS -->
-{% if goals and goals|length > 0 %}
+{% if goals %}
 <div class="card mb-16">
   <div class="card-title">🎯 Objectifs en cours</div>
   {% for ex, g in goals.items() %}
@@ -88,15 +86,13 @@
       <span class="text-muted" style="font-size: 0.85rem;">{{ g.current }} / {{ g.goal }} lbs</span>
     </div>
     <div class="progress-wrap">
-      <div class="progress-fill" style="width: {{ g.bar }}%;"></div>
+      <div class="progress-fill" style="width: {{ [g.current / g.goal * 100, 100] | min }}%"></div>
     </div>
   </div>
   {% endif %}
   {% endfor %}
   <a href="/objectifs" class="btn btn-secondary btn-block mt-8">Voir tous les objectifs</a>
 </div>
-{% else %}
-<p class="text-muted">Aucun objectif en cours (ajoute-en via le menu !)</p>
 {% endif %}
 
 <!-- STATS RAPIDES -->

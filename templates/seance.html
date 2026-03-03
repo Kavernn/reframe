@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Séance du jour — {{ today }}{% endblock %}
+
+{% block content %}
+
+<div class="container mx-auto px-4 py-8">
+
+  <h1 class="text-3xl font-bold text-orange mb-2">Séance du jour</h1>
+  <p class="text-muted mb-8">{{ today }} — Semaine {{ week }}</p>
+
+  {% if is_hiit %}
+  <div class="alert alert-info mb-8">
+    🏃 HIIT de la semaine {{ week }} : {{ hiit_str }}
+  </div>
+  {% endif %}
+
+  {% if exercises|length == 0 %}
+  <div class="card text-center py-12">
+    <p class="text-xl text-muted">Aucun exercice prévu aujourd'hui</p>
+    <p class="text-sm mt-4">Repos ou HIIT ? Repose-toi bien ! 😴</p>
+  </div>
+  {% else %}
+  <div class="space-y-8">
+    {% for ex in exercises %}
+    <div class="card" id="exo-{{ loop.index }}">
+      <div class="card-title">{{ ex.name }}</div>
+
+      <div class="flex-between mb-4">
+        <span class="badge badge-blue">{{ ex.scheme }}</span>
+        <span class="text-muted text-sm">Suggéré : {{ ex.display }}</span>
+      </div>
+
+      {% if ex.muscles %}
+      <p class="text-sm text-muted mb-4">Muscles : {{ ex.muscles|join(', ') }}</p>
+      {% endif %}
+
+      {% if ex.history and ex.history|length > 0 %}
+      <div class="text-sm mb-4 text-muted">
+        Dernier : {{ ex.history[0].weight }} lbs × {{ ex.history[0].reps }}
+        {% if ex.history[0]['1rm'] is defined and ex.history[0]['1rm'] > 0 %}
+          (1RM ~{{ ex.history[0]['1rm'] }} lbs)
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <form class="log-form mt-6" data-exo="{{ ex.name }}">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-muted mb-2">
+              Poids utilisé ({{ ex.type }})
+            </label>
+            <input
+              type="number"
+              name="weight"
+              step="0.5"
+              placeholder="{{ ex.current }}"
+              class="input w-full"
+              required
+            >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-muted mb-2">
+              Reps par série (ex: 8,7,6)
+            </label>
+            <input
+              type="text"
+              name="reps"
+              placeholder="8,7,6"
+              class="input w-full"
+              required
+            >
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full">
+          Log cet exercice
+        </button>
+
+        <div class="log-result mt-6 hidden p-4 bg-bg3 rounded-lg">
+          <p class="status text-green-400 font-medium mb-2"></p>
+          <p class="new-weight text-orange font-medium"></p>
+          <p class="1rm text-muted"></p>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Fin de séance -->
+  <div class="card mt-12">
+    <div class="card-title">Terminer la séance</div>
+    <form id="finish-session" class="mt-6">
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-muted mb-2">RPE global (1-10)</label>
+        <input type="number" id="rpe" name="rpe" min="1" max="10" class="input w-full">
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-muted mb-2">Commentaire / ressenti</label>
+        <textarea id="comment" name="comment" rows="3" class="input w-full"></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-success w-full">
+        Séance terminée – Sauvegarder
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Log individuel d'exercice
+  document.querySelectorAll('.log-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const exercise = form.dataset.exo;
+      const weight = form.querySelector('[name="weight"]').value.trim();
+      const reps = form.querySelector('[name="reps"]').value.trim();
+
+      if (!weight || !reps) {
+        alert("Remplis le poids et les reps avant de valider !");
+        return;
+      }
+
+      const resultDiv = form.querySelector('.log-result');
+      resultDiv.classList.remove('hidden');
+      resultDiv.innerHTML = '<p class="text-muted animate-pulse">Enregistrement...</p>';
+
+      try {
+        const res = await fetch('/api/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exercise, weight, reps })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          let message = '<p class="text-green-400 font-medium mb-2">' + (data.status || 'Exercice logué !') + '</p>';
+
+          if (data.new_weight !== undefined) {
+            message += '<p class="text-orange font-medium">Prochain : ' + data.new_weight + ' lbs</p>';
+          }
+
+          if (data['1rm'] !== undefined && data['1rm'] > 0) {
+            message += '<p class="text-muted">1RM estimé : ' + data['1rm'] + ' lbs</p>';
+          }
+
+          if (data.achieved && data.achieved.length > 0) {
+            message += '<p class="text-yellow-400 font-bold mt-3">🏆 Objectif atteint : ' + data.achieved.join(', ') + ' ! 🎉</p>';
+          }
+
+          resultDiv.innerHTML = message;
+        } else {
+          resultDiv.innerHTML = '<p class="text-red-500">Erreur : ' + (data.error || 'Problème inconnu') + '</p>';
+        }
+      } catch (err) {
+        resultDiv.innerHTML = '<p class="text-red-500">Erreur réseau : ' + err.message + '</p>';
+      }
+    });
+  });
+
+  // Fin de séance (RPE + commentaire global)
+  const finishForm = document.getElementById('finish-session');
+  if (finishForm) {
+    finishForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const rpe = document.getElementById('rpe').value.trim();
+      const comment = document.getElementById('comment').value.trim();
+      const exos = Array.from(document.querySelectorAll('.log-form')).map(f => f.dataset.exo);
+
+      try {
+        const res = await fetch('/api/log_session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rpe, comment, exos })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert('Séance terminée et sauvegardée ! 💪');
+          window.location.href = '/';
+        } else {
+          alert('Erreur lors de la sauvegarde');
+        }
+      } catch (err) {
+        alert('Erreur réseau');
+      }
+    });
+  }
+});
+</script>
+
+{% endblock %}
