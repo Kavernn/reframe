@@ -3,7 +3,9 @@ from pathlib import Path
 import json
 from typing import Dict
 
-DATA_FILE = Path("data/exercises.json")
+from pathlib import Path
+BASE_DIR  = Path(__file__).parent
+DATA_FILE = BASE_DIR / "data" / "exercises.json"
 
 # Valeurs par défaut (avec muscles ajoutés)
 DEFAULT_INVENTORY = {

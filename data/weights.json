@@ -1,0 +1,37 @@
+{
+  "Bench Press": {
+    "weight": 167.5,
+    "last_reps": "5,5,5,5",
+    "last_logged": "2026-03-02 16:05",
+    "input_value": 60.0,
+    "input_type": "barbell"
+  },
+  "Barbell Row": {
+    "weight": 137.5,
+    "last_reps": "8,8,8",
+    "last_logged": "2026-03-02 16:05",
+    "input_value": 45.0,
+    "input_type": "barbell"
+  },
+  "Incline DB Press": {
+    "weight": 122.5,
+    "last_reps": "8,8,8,8",
+    "last_logged": "2026-03-02 16:05",
+    "input_value": 60.0,
+    "input_type": "dumbbell"
+  },
+  "Lat Pulldown": {
+    "weight": 165.0,
+    "last_reps": "8,8,8",
+    "last_logged": "2026-03-02 16:05",
+    "input_value": 165.0,
+    "input_type": "total"
+  },
+  "Overhead Press": {
+    "weight": 102.5,
+    "last_reps": "8,8,8",
+    "last_logged": "2026-03-02 16:06",
+    "input_value": 50.0,
+    "input_type": "dumbbell"
+  }
+}

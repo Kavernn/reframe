@@ -1,0 +1,12 @@
+{
+  "name": "Vincent",
+  "age": "37",
+  "weight_kg": "80",
+  "height_cm": "170",
+  "sex": "m",
+  "level": "avance",
+  "goal": "force",
+  "units": "kg",
+  "created": "2026-03-03T09:32:10.346747",
+  "last_updated": "2026-03-03T09:33:32.597001"
+}

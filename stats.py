@@ -6,8 +6,10 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 
-DATA_FILE = Path("data/weights.json")
-HIIT_FILE = Path("data/hiit_log.json")
+from pathlib import Path
+BASE_DIR  = Path(__file__).parent
+DATA_FILE = BASE_DIR / "data" / "weights.json"
+HIIT_FILE = BASE_DIR / "data" / "hiit_log.json"
 
 
 def load_weights() -> dict:

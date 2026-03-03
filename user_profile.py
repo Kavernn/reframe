@@ -4,7 +4,9 @@ from pathlib import Path
 import json
 from datetime import datetime
 
-USER_FILE = Path("data/user.json")
+from pathlib import Path
+BASE_DIR  = Path(__file__).parent
+USER_FILE = BASE_DIR / "data" / "user.json"
 
 DEFAULT_USER = {
     "name": "Vince",

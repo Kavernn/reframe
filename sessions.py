@@ -3,7 +3,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-SESSIONS_FILE = Path("data/sessions.json")
+from pathlib import Path
+BASE_DIR      = Path(__file__).parent
+SESSIONS_FILE = BASE_DIR / "data" / "sessions.json"
 
 
 def load_sessions() -> dict:

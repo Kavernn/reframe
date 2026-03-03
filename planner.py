@@ -5,7 +5,9 @@ from pathlib import Path
 
 from progression import should_increase, next_weight
 
-PROGRAM_FILE = Path("data/program.json")
+from pathlib import Path
+BASE_DIR     = Path(__file__).parent
+PROGRAM_FILE = BASE_DIR / "data" / "program.json"
 
 # Valeurs par défaut si le fichier n'existe pas encore
 DEFAULT_PROGRAM = {
