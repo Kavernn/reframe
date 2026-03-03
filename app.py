@@ -8,6 +8,8 @@ from hiit import get_hiit_str
 from log_workout import load_weights, save_weights, log_single_exercise, show_exercise_history
 from inventory import load_inventory, add_exercise
 from user_profile import load_user_profile
+from stats import generate_dashboard
+
 
 START_DATE = date(2026, 3, 3)  # ← Change cette date si tu recommences un cycle
 
@@ -46,6 +48,7 @@ class TrainingOSApp:
         print("  9. Configurer / modifier mon profil")
         print(" 10. Voir mon récap intelligent")
         print(" 11. Voir catalogue des exercices")
+        print(" 12. 📊 Dashboard stats (navigateur)")
         print("  0. Quitter")
         print("═" * 60)
         print()
@@ -77,11 +80,13 @@ class TrainingOSApp:
                 self.show_recap_intelligent()
             elif choix == "11":
                 self.voir_catalogue_exercices()
+            elif choix == "12":
+                self.voir_dashboard_stats()
             elif choix in ("0", "q", "quit", "exit"):
                 print("\nGarde la promesse que tu t'es fait à toi même, lock n loaded !\n")
                 sys.exit(0)
             else:
-                print("Choix invalide – essaie 0 à 11.")
+                print("Choix invalide – essaie 0 à 12.")
 
             input("\nAppuie sur Entrée pour revenir au menu...")
 
@@ -409,3 +414,6 @@ class TrainingOSApp:
             print(f"    Scheme défaut: {info.get('default_scheme', '—')}")
             print(f"    Muscles ciblés: {muscles}")
             print("─" * 70)
+
+    def voir_dashboard_stats(self):
+        generate_dashboard()

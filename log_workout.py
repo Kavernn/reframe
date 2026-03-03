@@ -131,7 +131,7 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
         data[exercise] = {"history": []}
 
     data[exercise].setdefault("history", []).insert(0, history_entry)
-    data[exercise]["history"] = data[exercise]["history"][:20]
+    data[exercise]["history"] = data[exercise]["history"][:9999]
 
     data[exercise]["current_weight"] = round(new_weight, 1)
     data[exercise]["last_reps"] = reps_str
