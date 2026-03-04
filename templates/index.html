@@ -41,45 +41,62 @@
   {% endif %}
 
   <div class="mt-16">
+    {% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
+    <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
+      {% if 'HIIT' in today %}🏃
+      {% elif today == 'Yoga' %}🧘
+      {% else %}☯️{% endif %}
+      {{ today }}
+    </a>
+    {% else %}
     <a href="/seance" class="btn btn-primary btn-block">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 4v16M18 4v16M6 12h12M2 7h4M18 7h4M2 17h4M18 17h4"/>
       </svg>
       Logger ma séance
     </a>
-  </div>
-</div>
- <a href="/programme" class="btn btn-secondary btn-block mt-8">
+    {% endif %}
+    <a href="/programme" class="btn btn-secondary btn-block mt-8">
       📅 Modifier le programme
     </a>
+    <a href="/hiit" class="btn btn-secondary btn-block mt-8">
+      🏃 Historique HIIT
+    </a>
+    <a href="/notes" class="btn btn-secondary btn-block mt-8">
+      📋 Notes & RPE des séances
+    </a>
+  </div>
 </div>
-<a href="/hiit" class="btn btn-secondary btn-block mt-8">
-  🏃 Historique HIIT
-</a>
-<a href="/notes" class="btn btn-secondary btn-block mt-8">
-  📋 Notes & RPE des séances
-</a>
 
 <!-- PLANNING SEMAINE -->
 <div class="card mb-16">
   <div class="card-title">Planning de la semaine</div>
   <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 8px;">
-    {% set jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
     {% for jour, seance in schedule.items() %}
-    <div style="
-      text-align: center;
-      padding: 8px 4px;
-      border-radius: 8px;
-      background: {% if seance == today %}var(--orange){% else %}var(--bg3){% endif %};
-      border: 1px solid {% if seance == today %}var(--orange){% else %}var(--border){% endif %};
-    ">
-      <div style="font-size: 0.65rem; color: {% if seance == today %}white{% else %}var(--muted){% endif %}; margin-bottom: 4px;">
-        {{ jour[:3] }}
+
+  {% if seance in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
+  <a href="/seance_speciale/{{ seance }}" style="text-decoration: none;">
+    {% else %}
+      <a href="/programme#{{ seance | replace(' ', '-') }}" style="text-decoration: none;">
+    {% endif %}
+
+      <div style="
+        text-align: center;
+        padding: 8px 4px;
+        border-radius: 8px;
+        background: {% if seance == today %}var(--orange){% else %}var(--bg3){% endif %};
+        border: 1px solid {% if seance == today %}var(--orange){% else %}var(--border){% endif %};
+        cursor: pointer;
+        transition: all 0.15s;
+      ">
+        <div style="font-size: 0.65rem; color: {% if seance == today %}white{% else %}var(--muted){% endif %}; margin-bottom: 4px;">
+          {{ jour[:3] }}
+        </div>
+        <div style="font-size: 0.7rem; font-weight: 600; color: {% if seance == today %}white{% else %}var(--text){% endif %};">
+          {{ seance[:6] if seance else '—' }}
+        </div>
       </div>
-      <div style="font-size: 0.7rem; font-weight: 600; color: {% if seance == today %}white{% else %}var(--text){% endif %};">
-        {{ seance[:6] if seance else '—' }}
-      </div>
-    </div>
+    </a>
     {% endfor %}
   </div>
 </div>
@@ -112,7 +129,6 @@
     <div style="font-size: 2rem;">📊</div>
     <div class="text-muted mt-8" style="font-size: 0.85rem;">Voir mes graphiques</div>
   </a>
-
   <a href="/historique" class="card" style="text-decoration: none; cursor: pointer;">
     <div class="card-title">Historique</div>
     <div style="font-size: 2rem;">📈</div>

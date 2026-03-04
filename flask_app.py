@@ -158,10 +158,12 @@ def programme():
     program   = load_program()
     inv       = load_inventory()
     today     = get_today()
+    schedule  = get_week_schedule()  # {"Lundi": "Upper A", "Mardi": "Lower", etc.}
     return render_template("programme.html",
-        program   = program,
+        program  = program,
         inventory = inv,
-        today     = today
+        today    = today,
+        schedule = schedule
     )
 
 
@@ -296,6 +298,8 @@ def seance():
     # 1. Chargement des données
     weights = load_weights()
     today = get_today()
+    if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery']:
+        return redirect(url_for('seance_speciale', session_type=today))
     program = load_program()
     inv = load_inventory()
 
@@ -456,6 +460,28 @@ def api_delete_hiit():
             return jsonify({"success": True})
 
     return jsonify({"error": "Fichier ou index introuvable"}), 400
+@app.route("/seance_speciale/<path:session_type>")
+def seance_speciale(session_type):
+    week = get_current_week()
+
+    # Protocole HIIT progressif selon la semaine
+    if week <= 4:
+        protocole = {"rounds": 8,  "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 20}
+    elif week <= 8:
+        protocole = {"rounds": 10, "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 25}
+    elif week <= 12:
+        protocole = {"rounds": 12, "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 28}
+    elif week <= 16:
+        protocole = {"rounds": 8,  "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 20}
+    else:
+        protocole = {"rounds": 10, "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 25}
+
+    return render_template("seance_speciale.html",
+        session_type = session_type,
+        protocole    = protocole,
+        week         = week,
+        now          = datetime.now().strftime("%Y-%m-%d")
+    )
 @app.route("/api/log", methods=["POST"])
 def api_log():
     try:

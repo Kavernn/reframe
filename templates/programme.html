@@ -154,7 +154,7 @@
 </div>
 
 {% for jour, exercices in program.items() %}
-<div class="day-card">
+<div class="day-card" id="{{ jour | replace(' ', '-') }}">
 
   <div class="day-header" onclick="toggleDay({{ loop.index }})">
     <div>
@@ -301,15 +301,31 @@
     body.classList.toggle('open');
   }
 
-  // Auto-ouvre le jour d'aujourd'hui
-  const today = "{{ today }}";
-  document.querySelectorAll('.day-name').forEach((el, i) => {
-    if (el.textContent.trim() === today) {
-      document.getElementById(`day-${i + 1}`).classList.add('open');
+  // ── AUTO-OUVRE DEPUIS ANCRE URL ───────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const hash = window.location.hash.replace('#', '');
+
+    if (hash) {
+      // Ouvre le jour depuis l'ancre
+      const card = document.getElementById(hash);
+      if (card) {
+        const body = card.querySelector('.day-body');
+        if (body) body.classList.add('open');
+        setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+      }
+    } else {
+      // Auto-ouvre le jour d'aujourd'hui
+      const today = "{{ today }}";
+      document.querySelectorAll('.day-name').forEach((el, i) => {
+        if (el.textContent.trim() === today) {
+          const body = document.getElementById(`day-${i + 1}`);
+          if (body) body.classList.add('open');
+        }
+      });
     }
   });
 
-  // ── PICKER ────────────────────────────────────────────
+  // ── PICKER D'EXERCICES ────────────────────────────────
   function buildPicker(containerId, excludes = []) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -374,10 +390,10 @@
 
   // ── SCHEME ────────────────────────────────────────────
   function openSchemeModal(jour, exo, scheme) {
-    document.getElementById('scheme-jour').value          = jour;
-    document.getElementById('scheme-exo').value           = exo;
-    document.getElementById('scheme-new').value           = scheme;
-    document.getElementById('scheme-label').textContent   = `Scheme de ${exo} (actuel: ${scheme})`;
+    document.getElementById('scheme-jour').value        = jour;
+    document.getElementById('scheme-exo').value         = exo;
+    document.getElementById('scheme-new').value         = scheme;
+    document.getElementById('scheme-label').textContent = `Scheme de ${exo} (actuel: ${scheme})`;
     document.getElementById('modal-scheme').classList.add('open');
   }
 
