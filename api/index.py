@@ -5,8 +5,7 @@ from datetime import date, datetime
 import os
 import json
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, BASE_DIR)
+
 
 from planner import get_today, get_week_schedule, get_suggested_weights_for_today, load_program, save_program
 from hiit import get_hiit_str
@@ -22,6 +21,11 @@ from goals import gerer_objectifs, afficher_objectifs, check_goals_achieved
 
 from flask import Flask, render_template
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
+
+def get_data_path(filename):
+    return os.path.join(BASE_DIR, 'data', filename)
 
 app = Flask(__name__,
             template_folder='../templates',   # monte d'un niveau pour trouver templates/
