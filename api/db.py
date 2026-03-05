@@ -1,8 +1,7 @@
-# api/db.py
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 from supabase import Client, create_client
 
@@ -10,12 +9,11 @@ _SUPABASE_URL = os.getenv("SUPABASE_URL")
 _SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 if not _SUPABASE_URL or not _SUPABASE_KEY:
-    raise RuntimeError(
-        "SUPABASE_URL et/ou SUPABASE_ANON_KEY manquent dans les variables d'environnement."
-    )
+    raise RuntimeError("Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables.")
 
 _client: Client = create_client(_SUPABASE_URL, _SUPABASE_KEY)
 _TABLE = "kv"
+
 
 def _single_or_none(resp) -> Optional[dict]:
     data = getattr(resp, "data", None)
@@ -23,19 +21,22 @@ def _single_or_none(resp) -> Optional[dict]:
         return data[0] if data else None
     return data
 
+
 def get_json(key: str, default: Any = None) -> Any:
-    """Lit la valeur JSON associée à `key` dans la table kv."""
+    """Return JSON value for key or default if missing/error."""
     try:
         resp = _client.table(_TABLE).select("value").eq("key", key).single().execute()
         row = _single_or_none(resp)
         if row is None:
             return default
         return row.get("value", default)
-    except Exception:
+    except Exception as e:
+        print(f"[DB] get_json({key}) error: {e}")
         return default
 
+
 def set_json(key: str, value: Any) -> bool:
-    """Écrit/remplace la valeur JSON pour `key` (upsert)."""
+    """Upsert JSON value for key."""
     try:
         _client.table(_TABLE).upsert({"key": key, "value": value}).execute()
         return True
@@ -43,8 +44,9 @@ def set_json(key: str, value: Any) -> bool:
         print(f"[DB] set_json({key}) error: {e}")
         return False
 
+
 def update_json(key: str, patch: Dict[str, Any]) -> Any:
-    """Lit JSON, merge avec `patch`, réécrit, retourne la nouvelle valeur."""
+    """Merge dict patch into existing JSON (dict) and save."""
     base = get_json(key, {}) or {}
     if not isinstance(base, dict):
         base = {}
@@ -52,8 +54,9 @@ def update_json(key: str, patch: Dict[str, Any]) -> Any:
     ok = set_json(key, base)
     return base if ok else None
 
-def append_json_list(key: str, entry: Any, max_items: Optional[int] = None) -> List[Any]:
-    """Insère `entry` en tête d'une liste JSON stockée sous `key`."""
+
+def append_json_list(key: str, entry: Any, max_items: Optional[int] = None) -> list:
+    """Insert entry at head of list under key; truncate to max_items if provided."""
     arr = get_json(key, []) or []
     if not isinstance(arr, list):
         arr = []
@@ -63,6 +66,6 @@ def append_json_list(key: str, entry: Any, max_items: Optional[int] = None) -> L
     set_json(key, arr)
     return arr
 
+
 def client() -> Client:
-    """Expose le client natif Supabase pour les cas avancés."""
     return _client

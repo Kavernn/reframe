@@ -1,23 +1,21 @@
 # api/index.py
+# api/index.py
 from __future__ import annotations
-
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 import json
 from datetime import date, datetime
 
-# ✅ Imports absolus (tous les modules sont dans /api)
-from planner import (
+# ✅ Imports RELATIFS (package api)
+from .planner import (
     get_today,
     get_week_schedule,
     get_suggested_weights_for_today,
     load_program,
     save_program,
 )
-from hiit import get_hiit_str
-from log_workout import (
+from .hiit import get_hiit_str
+from .log_workout import (
     load_weights,
     save_weights,
     log_single_exercise,
@@ -25,20 +23,19 @@ from log_workout import (
     log_hiit_session,
     show_hiit_history,
 )
-from inventory import load_inventory, add_exercise, save_inventory
-from user_profile import load_user_profile, save_user_profile, setup_user_profile
-from stats import generate_dashboard
-from sessions import (
+from .inventory import load_inventory, add_exercise, save_inventory
+from .user_profile import load_user_profile, save_user_profile, setup_user_profile
+from .stats import generate_dashboard
+from .sessions import (
     load_sessions,
     save_sessions,
     log_session,
     get_last_sessions,
     migrate_sessions_from_weights,
 )
-from deload import afficher_rapport_deload, analyser_deload, load_deload_state
-from body_weight import log_body_weight, afficher_historique_poids, load_body_weight, get_tendance
-from goals import gerer_objectifs, afficher_objectifs, check_goals_achieved
-
+from .deload import afficher_rapport_deload, analyser_deload, load_deload_state
+from .body_weight import log_body_weight, afficher_historique_poids, load_body_weight, get_tendance
+from .goals import gerer_objectifs, afficher_objectifs, check_goals_achieved
 from flask import Flask, render_template
 
 # Dossiers templates/static situés à la racine du repo (../ depuis /api)
