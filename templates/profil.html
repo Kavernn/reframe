@@ -190,8 +190,8 @@
   <div class="avatar-edit-icon">📷</div>
 </div>
 
-<input type="file" id="photo-input" style="display: none;" accept="image/*" onchange="uploadPhoto()">
-
+<input type="file" id="photo-input-file"   style="display: none;" accept="image/*"            onchange="uploadPhoto(this)">
+<input type="file" id="photo-input-camera" style="display: none;" accept="image/*" capture="user" onchange="uploadPhoto(this)">
   <div class="profile-name">
     <span>{{ profile.name or 'Athlète' }}</span>
     <span style="font-size: 1.6rem;">💪</span>
@@ -215,6 +215,21 @@
       <div class="stat-val">{{ profile.height or '—' }}</div>
       <div class="stat-lbl">Taille (cm)</div>
     </div>
+  </div>
+</div>
+<!-- MODAL PHOTO -->
+<div class="modal-overlay" id="modal-photo">
+  <div class="modal-box" style="max-width: 320px;">
+    <div class="modal-title">📷 Photo de profil</div>
+    <button class="btn btn-secondary btn-block mb-16" onclick="document.getElementById('photo-input-file').click(); closePhotoModal()">
+      🖼️ Choisir depuis la galerie
+    </button>
+    <button class="btn btn-primary btn-block" onclick="document.getElementById('photo-input-camera').click(); closePhotoModal()">
+      📷 Prendre une photo
+    </button>
+    <button class="btn btn-secondary btn-block mt-8" onclick="closePhotoModal()">
+      Annuler
+    </button>
   </div>
 </div>
 
@@ -421,41 +436,40 @@
   function closePoidsModal() { document.getElementById('modal-poids').classList.remove('open'); }
 // Cette fonction ouvre la fenêtre de sélection de fichier
 function triggerPhotoUpload() {
-  const input = document.getElementById('photo-input');
-  if (input) {
-    input.click();
-  } else {
-    console.error("L'élément photo-input est introuvable dans le DOM.");
-  }
+  document.getElementById('modal-photo').classList.add('open');
 }
 
-// Cette fonction envoie l'image au serveur dès qu'elle est choisie
-async function uploadPhoto() {
-  const fileInput = document.getElementById('photo-input');
-  const file = fileInput.files[0];
+function closePhotoModal() {
+  document.getElementById('modal-photo').classList.remove('open');
+}
+
+async function uploadPhoto(input) {
+  const file = input.files[0];
   if (!file) return;
 
   const formData = new FormData();
   formData.append('photo', file);
 
   try {
-    const res = await fetch('/api/update_profile_photo', {
-      method: 'POST',
-      body: formData
-    });
-
+    const res    = await fetch('/api/update_profile_photo', { method: 'POST', body: formData });
     const result = await res.json();
     if (result.success) {
-      // Met à jour l'image sans recharger
-      document.getElementById('profile-avatar-img').src = result.photo_url;
-      if (typeof showToast === "function") showToast('Photo mise à jour ! 📷');
+      document.getElementById('profile-avatar-img').src = result.photo_url + '?t=' + Date.now();
+      showToast('Photo mise à jour ! 📷');
     } else {
-      alert("Erreur: " + result.error);
+      showToast('Erreur: ' + result.error, 'error');
     }
-  } catch (error) {
-    console.error('Erreur lors de l\'upload:', error);
+  } catch (err) {
+    showToast('Erreur upload !', 'error');
   }
 }
+
+// Ajoute modal-photo dans la liste des fermetures
+['modal-edit', 'modal-poids', 'modal-photo'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+});
   async function savePoids() {
     const poids = parseFloat(document.getElementById('poids-val').value);
     const note  = document.getElementById('poids-note').value.trim();

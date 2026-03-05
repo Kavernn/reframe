@@ -318,6 +318,11 @@ def api_log():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/sw.js')
+def service_worker():
+    from flask import send_from_directory
+    return send_from_directory('static', 'sw.js',
+        mimetype='application/javascript')
 @app.route("/api/log_session", methods=["POST"])
 def api_log_session():
     try:

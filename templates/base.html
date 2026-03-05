@@ -6,10 +6,13 @@
   <title>{% block title %}TrainingOS{% endblock %}</title>
 
   <!-- PWA -->
-  <meta name="theme-color" content="#0f0f13">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#f97316">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TrainingOS">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -408,7 +411,7 @@
   <!-- TOAST -->
   <div id="toast"></div>
 
-  <!-- JS GLOBAL -->
+ <!-- JS GLOBAL -->
   <script>
     function showToast(msg, type = 'success') {
       const t = document.getElementById('toast');
@@ -418,17 +421,15 @@
     }
   </script>
 
-  {% block extra_js %}
-   <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/static/sw.js")
-      .then(() => console.log("SW enregistré"))
-      .catch(err => console.log("SW erreur:", err));
-  }
-</script>
-  {% endblock %}
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js')
+        .then(() => console.log('✅ Service Worker enregistré'))
+        .catch(err => console.log('❌ SW Error:', err));
+    }
+  </script>
 
-
+  {% block extra_js %}{% endblock %}
 
 </body>
 </html>

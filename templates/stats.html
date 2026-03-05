@@ -3,6 +3,40 @@
 
 {% block extra_css %}
 <style>
+
+  .comp-kpi {
+  background: var(--bg3);
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.comp-kpi-val {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.comp-kpi-lbl {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+.comp-kpi-delta {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.delta-up   { color: var(--green); }
+.delta-down { color: var(--rose);  }
+.delta-same { color: var(--muted); }
+
   .chart-card {
     background: var(--bg2);
     border: 1px solid var(--border);
@@ -161,6 +195,7 @@
 <script id="sessions-data"    type="application/json">{{ sessions    | tojson }}</script>
 <script id="hiitlog-data"     type="application/json">{{ hiit_log    | tojson }}</script>
 <script id="bodyweight-data"  type="application/json">{{ body_weight | tojson }}</script>
+<script id="inventory-data" type="application/json">{{ inventory | tojson }}</script>
 
 <div class="flex-between mb-16">
   <h2 class="text-orange">📊 Dashboard</h2>
@@ -269,7 +304,30 @@
   <h3>Évolution volume par groupe — 4 dernières semaines</h3>
   <canvas id="muscleEvol" height="120"></canvas>
 </div>
+<!-- COMPARAISON SEMAINE VS SEMAINE -->
+<div class="section-label">📊 Comparaison semaine vs semaine</div>
 
+<div class="chart-card">
+  <h3>Cette semaine vs semaine précédente</h3>
+
+  <!-- Sélecteur semaine de comparaison -->
+  <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+    <button class="muscle-filter active" onclick="setCompWeek(1, this)">S-1</button>
+    <button class="muscle-filter" onclick="setCompWeek(2, this)">S-2</button>
+    <button class="muscle-filter" onclick="setCompWeek(4, this)">S-4</button>
+  </div>
+
+  <!-- KPI cards comparaison -->
+  <div id="comp-kpis" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;"></div>
+
+  <!-- Graphique radar -->
+  <canvas id="compRadar" height="260"></canvas>
+</div>
+
+<div class="chart-card">
+  <h3>Volume par exercice — cette semaine vs avant</h3>
+  <canvas id="compBar" height="160"></canvas>
+</div>
 <!-- POIDS CORPOREL -->
 <div class="section-label">⚖️ Poids corporel</div>
 
@@ -824,6 +882,214 @@ function buildMuscleEvol() {
     }
   });
 }
+// ── COMPARAISON SEMAINE VS SEMAINE ────────────────────
+
+const inventory = JSON.parse(document.getElementById('inventory-data')?.textContent || '{}');
+
+function getWeekRange(weeksAgo) {
+  const from = new Date();
+  from.setHours(0,0,0,0);
+  from.setDate(from.getDate() - from.getDay() - weeksAgo * 7);
+  const to = new Date(from);
+  to.setDate(to.getDate() + 7);
+  return {
+    from: from.toISOString().split('T')[0],
+    to:   to.toISOString().split('T')[0]
+  };
+}
+
+function getWeekStats(weeksAgo) {
+  const { from, to } = getWeekRange(weeksAgo);
+  let volume   = 0;
+  let seances  = new Set();
+  let totalRpe = 0;
+  let rpeCount = 0;
+  let exoVols  = {};
+
+  for (const [ex, data] of Object.entries(weights)) {
+    if (ex === 'sessions') continue;
+    for (const entry of (data.history || [])) {
+      if (entry.date < from || entry.date >= to) continue;
+      const w    = entry.weight || 0;
+      const reps = (entry.reps || '').split(',').map(Number).filter(Boolean);
+      const vol  = w * reps.reduce((a, b) => a + b, 0);
+      volume += vol;
+      seances.add(entry.date);
+      exoVols[ex] = (exoVols[ex] || 0) + vol;
+    }
+  }
+
+  // RPE depuis sessions
+  for (const [date, session] of Object.entries(sessions)) {
+    if (date >= from && date < to && session.rpe) {
+      totalRpe += session.rpe;
+      rpeCount++;
+    }
+  }
+
+  // Muscles travaillés
+  const muscleVol = {};
+  for (const [ex, vol] of Object.entries(exoVols)) {
+    const muscles = inventory[ex]?.muscles || [];
+    for (const muscle of muscles) {
+      const group = MUSCLE_GROUPS[muscle.toLowerCase()]?.label || muscle;
+      muscleVol[group] = (muscleVol[group] || 0) + vol;
+    }
+  }
+
+  return {
+    volume:   Math.round(volume),
+    seances:  seances.size,
+    rpe:      rpeCount > 0 ? Math.round((totalRpe / rpeCount) * 10) / 10 : 0,
+    exoVols,
+    muscleVol
+  };
+}
+
+function deltaArrow(curr, prev) {
+  if (!prev) return { text: '—', cls: 'delta-same' };
+  const pct = Math.round(((curr - prev) / prev) * 100);
+  if (pct > 0)  return { text: `▲ +${pct}%`, cls: 'delta-up' };
+  if (pct < 0)  return { text: `▼ ${pct}%`,  cls: 'delta-down' };
+  return { text: '= 0%', cls: 'delta-same' };
+}
+
+let compRadarChart = null;
+let compBarChart   = null;
+
+function buildComparison(weeksAgo) {
+  const curr = getWeekStats(0);
+  const prev = getWeekStats(weeksAgo);
+
+  // ── KPI Cards ──
+  const kpis = [
+    { label: 'Volume (lbs)',  curr: curr.volume,  prev: prev.volume,  fmt: v => v.toLocaleString() },
+    { label: 'Séances',       curr: curr.seances, prev: prev.seances, fmt: v => v },
+    { label: 'RPE moyen',     curr: curr.rpe,     prev: prev.rpe,     fmt: v => v || '—' },
+  ];
+
+  const kpiEl = document.getElementById('comp-kpis');
+  kpiEl.innerHTML = kpis.map(k => {
+    const d = deltaArrow(k.curr, k.prev);
+    return `
+      <div class="comp-kpi">
+        <div class="comp-kpi-val" style="color: var(--orange)">${k.fmt(k.curr)}</div>
+        <div class="comp-kpi-lbl">${k.label}</div>
+        <div class="comp-kpi-delta ${d.cls}">${d.text}</div>
+        <div style="font-size:0.65rem; color:var(--muted); margin-top:2px;">avant: ${k.fmt(k.prev)}</div>
+      </div>
+    `;
+  }).join('');
+
+  // ── Radar musculaire ──
+  const allMuscles = [...new Set([
+    ...Object.keys(curr.muscleVol),
+    ...Object.keys(prev.muscleVol)
+  ])].slice(0, 8);
+
+  const currVals = allMuscles.map(m => curr.muscleVol[m] || 0);
+  const prevVals = allMuscles.map(m => prev.muscleVol[m] || 0);
+
+  if (compRadarChart) compRadarChart.destroy();
+  compRadarChart = new Chart(document.getElementById('compRadar'), {
+    type: 'radar',
+    data: {
+      labels: allMuscles,
+      datasets: [
+        {
+          label:           'Cette semaine',
+          data:            currVals,
+          borderColor:     orange,
+          backgroundColor: orange + '33',
+          borderWidth:     2,
+          pointBackgroundColor: orange,
+          pointRadius:     4,
+        },
+        {
+          label:           `S-${weeksAgo}`,
+          data:            prevVals,
+          borderColor:     blue,
+          backgroundColor: blue + '22',
+          borderWidth:     2,
+          pointBackgroundColor: blue,
+          pointRadius:     4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: '#888', font: { size: 11 }, boxWidth: 12 }
+        }
+      },
+      scales: {
+        r: {
+          ticks:       { display: false },
+          grid:        { color: '#2a2a3a' },
+          pointLabels: { color: '#999', font: { size: 10 } },
+          angleLines:  { color: '#2a2a3a' }
+        }
+      }
+    }
+  });
+
+  // ── Bar exercices ──
+  // Top 8 exercices par volume cette semaine ou précédente
+  const allExos = [...new Set([
+    ...Object.keys(curr.exoVols),
+    ...Object.keys(prev.exoVols)
+  ])];
+
+  const sortedExos = allExos
+    .sort((a, b) => ((curr.exoVols[b] || 0) + (prev.exoVols[b] || 0)) - ((curr.exoVols[a] || 0) + (prev.exoVols[a] || 0)))
+    .slice(0, 8);
+
+  if (compBarChart) compBarChart.destroy();
+  compBarChart = new Chart(document.getElementById('compBar'), {
+    type: 'bar',
+    data: {
+      labels: sortedExos,
+      datasets: [
+        {
+          label:           'Cette semaine',
+          data:            sortedExos.map(ex => Math.round(curr.exoVols[ex] || 0)),
+          backgroundColor: orange + '99',
+          borderColor:     orange,
+          borderWidth:     1,
+          borderRadius:    4,
+        },
+        {
+          label:           `S-${weeksAgo}`,
+          data:            sortedExos.map(ex => Math.round(prev.exoVols[ex] || 0)),
+          backgroundColor: blue + '55',
+          borderColor:     blue,
+          borderWidth:     1,
+          borderRadius:    4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true, labels: { color: '#888', font: { size: 11 }, boxWidth: 12 } }
+      },
+      scales: {
+        x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1e1e2a' } },
+        y: { ticks: { color: '#666' }, grid: { color: '#1e1e2a' } }
+      }
+    }
+  });
+}
+
+function setCompWeek(weeksAgo, btn) {
+  document.querySelectorAll('.muscle-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildComparison(weeksAgo);
+}
+
+buildComparison(1);
 
 buildMuscleEvol();
 </script>
