@@ -17,6 +17,7 @@ from goals import gerer_objectifs, afficher_objectifs, check_goals_achieved
 
 from flask import Flask, render_template
 
+
 app = Flask(__name__,
             template_folder='../templates',   # monte d'un niveau pour trouver templates/
             static_folder='../static')
