@@ -43,18 +43,57 @@ SCHEDULE = {
 }
 
 
-def load_program() -> dict:
-    if not PROGRAM_FILE.exists():
+from pathlib import Path
+from typing import Dict, Any
+import json
+
+# Définition du chemin absolu (remonte depuis api/ → racine projet → data/)
+PROGRAM_FILE = Path(__file__).parent.parent / "data" / "program.json"
+
+# Ton DEFAULT_PROGRAM (à définir ici ou importé d'un autre fichier)
+# Exemple minimal – remplace par le vrai contenu par défaut de ton programme
+DEFAULT_PROGRAM = {
+    "Lundi": {"Squat": "5x5", "Bench Press": "5x5"},
+    "Mardi": {"Deadlift": "1x5", "Overhead Press": "5x5"},
+    # ... ajoute tous tes jours et exercices par défaut
+}
+
+
+def load_program() -> Dict[str, Any]:
+    """
+    Charge program.json de façon sûre.
+    - Crée le fichier avec DEFAULT_PROGRAM s'il n'existe pas
+    - Retourne une copie de DEFAULT_PROGRAM en cas d'erreur
+    - Loggue les problèmes pour debug Vercel
+    """
+    if not PROGRAM_FILE.is_file():
         PROGRAM_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(PROGRAM_FILE, "w", encoding="utf-8") as f:
-            json.dump(DEFAULT_PROGRAM, f, indent=2, ensure_ascii=False)
-        return DEFAULT_PROGRAM.copy()
+        try:
+            PROGRAM_FILE.write_text(
+                json.dumps(DEFAULT_PROGRAM, indent=2, ensure_ascii=False),
+                encoding="utf-8"
+            )
+            print(f"[INFO] Fichier program.json créé avec valeurs par défaut : {PROGRAM_FILE}")
+            return DEFAULT_PROGRAM.copy()
+        except Exception as e:
+            print(f"[ERROR] Impossible de créer {PROGRAM_FILE} : {e}")
+            return DEFAULT_PROGRAM.copy()
 
     try:
-        with open(PROGRAM_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        print("Erreur chargement program.json → utilisation des valeurs par défaut")
+        data = json.loads(PROGRAM_FILE.read_text(encoding="utf-8"))
+
+        if not isinstance(data, dict):
+            print(f"[WARNING] Contenu invalide dans {PROGRAM_FILE} : pas un dictionnaire")
+            return DEFAULT_PROGRAM.copy()
+
+        return data
+
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] JSON corrompu dans {PROGRAM_FILE} : {e}")
+        return DEFAULT_PROGRAM.copy()
+
+    except Exception as e:
+        print(f"[ERROR] Erreur chargement {PROGRAM_FILE} : {e}")
         return DEFAULT_PROGRAM.copy()
 
 

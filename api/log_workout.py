@@ -16,18 +16,49 @@ HIIT_FILE = BASE_DIR / "data" / "hiit_log.json"
 # WEIGHTS
 # ─────────────────────────────────────────────────────────────
 
-def load_weights() -> Dict[str, Any]:
+from pathlib import Path
+from typing import Dict, Any
+import json
 
-    if not DATA_FILE.exists():
+# Définition du chemin absolu depuis la racine du projet
+# (remonte de api/ → trainingOS/ → data/)
+DATA_FILE = Path(__file__).parent.parent / "data" / "weights.json"
+
+
+def load_weights() -> Dict[str, Any]:
+    """
+    Charge weights.json de façon sûre.
+    - Crée le dossier si absent
+    - Retourne {} si fichier absent, corrompu ou erreur d'accès
+    - Loggue les erreurs pour debug sur Vercel
+    """
+    # 1. Vérifie si le fichier existe vraiment (is_file() est plus précis)
+    if not DATA_FILE.is_file():
         DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
         return {}
+
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, dict) else {}
-    except:
+        # Lecture propre avec pathlib
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+
+        # Sécurité : on veut un dict
+        if not isinstance(data, dict):
+            print(f"[WARNING] Contenu invalide dans {DATA_FILE} : pas un dictionnaire")
+            return {}
+
+        return data
+
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] JSON corrompu dans {DATA_FILE} : {e}")
         return {}
 
+    except PermissionError as e:
+        print(f"[ERROR] Permission refusée sur {DATA_FILE} : {e}")
+        return {}
+
+    except Exception as e:
+        print(f"[ERROR] Erreur inattendue chargement {DATA_FILE} : {e}")
+        return {}
 
 def save_weights(weights: Dict[str, Any]):
     try:
