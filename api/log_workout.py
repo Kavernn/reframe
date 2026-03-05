@@ -1,52 +1,34 @@
 # api/log_workout.py
 from __future__ import annotations
-
-import json
-from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 
-from progression import should_increase, next_weight, progression_status, parse_reps, estimate_1rm
-from inventory import load_inventory, add_exercise
+from .db import get_json, set_json
+from .progression import should_increase, next_weight, progression_status, parse_reps, estimate_1rm
+from .inventory import load_inventory, add_exercise
 
-# Chemins → data/ est à la racine du projet
-BASE_DIR = Path(__file__).parent               # /trainingOS/api
-DATA_DIR = BASE_DIR.parent / "data"            # /trainingOS/data
-WEIGHTS_FILE = DATA_DIR / "weights.json"
-HIIT_FILE = DATA_DIR / "hiit_log.json"
+KEY_WEIGHTS = "weights"
+KEY_HIIT_LOG = "hiit_log"
 
-# ─────────────────────────────
-# WEIGHTS
-# ─────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# WEIGHTS (KV)
+# ──────────────────────────────────────────────────────────────────────────────
+
 def load_weights() -> Dict[str, Any]:
     """
-    Charge weights.json en toute sécurité.
-    - Crée le dossier si absent
-    - Retourne {} si absent/corrompu
+    Charge l'état des poids depuis Supabase KV.
+    Retourne {} si absent/corrompu.
     """
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if not WEIGHTS_FILE.is_file():
-        return {}
-    try:
-        data = json.loads(WEIGHTS_FILE.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except Exception as e:
-        print(f"[ERROR] Lecture {WEIGHTS_FILE} : {e}")
-        return {}
+    data = get_json(KEY_WEIGHTS, {}) or {}
+    return data if isinstance(data, dict) else {}
 
 def save_weights(weights: Dict[str, Any]) -> None:
-    try:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        WEIGHTS_FILE.write_text(
-            json.dumps(weights, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-    except Exception as e:
-        print(f"Erreur sauvegarde weights : {e}")
+    set_json(KEY_WEIGHTS, weights)
 
-# ─────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # LOG UN EXERCICE
-# ─────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+
 def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any]:
     data = weights.copy() if isinstance(weights, dict) else {}
 
@@ -58,7 +40,7 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
     if last and "history" in last and last["history"]:
         last_entry = last["history"][0]
         print(
-            f" Dernière : {last_entry['weight']} lbs  {last_entry['reps']}  "
+            f" Dernière : {last_entry['weight']} lbs {last_entry['reps']} "
             f"{last_entry.get('note', '—')}"
         )
 
@@ -78,8 +60,8 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
 
     # Échauffement (si module présent)
     try:
-        from warmup import proposer_warmup
-        from planner import get_today, load_program
+        from .warmup import proposer_warmup
+        from .planner import get_today, load_program
         program = load_program()
         today = get_today()
         proposer_warmup(exercise, data, inv, program, today)
@@ -100,7 +82,6 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
             total_weight = side * 2 + bar_w
             input_value = side
             print(f" Total : {total_weight:.1f} lbs")
-
     elif ex_type == "dumbbell":
         val = input(f" Poids par haltère → ").strip()
         if not val:
@@ -110,7 +91,6 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
             total_weight = per * 2
             input_value = per
             print(f" Total : {total_weight:.1f} lbs")
-
     else:
         val = input(f" Poids total (machine etc.) → ").strip()
         if not val:
@@ -129,6 +109,7 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
     if not reps_input:
         print(" Exercice passé")
         return data
+
     reps_list = parse_reps(reps_input)
     reps_str = ",".join(map(str, reps_list))
 
@@ -145,8 +126,8 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
 
     # Timer de repos (si module présent) + scheme si dispo
     try:
-        from timer import demander_timer
-        from planner import load_program, get_today
+        from .timer import demander_timer
+        from .planner import load_program, get_today
         scheme = ""
         program = load_program()
         today = get_today()
@@ -156,7 +137,7 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
     except Exception:
         pass
 
-    # Sauvegarde
+    # Sauvegarde dans la structure en mémoire
     note = f"+{new_weight - total_weight:.1f}" if should_increase(reps_str, exercise) else "stagné"
     history_entry = {
         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -165,6 +146,7 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
         "note": note,
         "1rm": estimate_1rm(total_weight, reps_str),
     }
+
     if exercise not in data:
         data[exercise] = {"history": []}
     data[exercise].setdefault("history", []).insert(0, history_entry)
@@ -178,7 +160,7 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
     # Exercice inconnu → ajout inventaire
     if not ex_info:
         print("\n Ajout automatique à l'inventaire...")
-        from menu_select import selectionner
+        from .menu_select import selectionner
         t = selectionner(
             "Type d'exercice :",
             ["barbell", "dumbbell", "machine", "bodyweight", "cable"],
@@ -189,9 +171,10 @@ def log_single_exercise(exercise: str, weights: Dict[str, Any]) -> Dict[str, Any
 
     return data
 
-# ─────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # HISTORIQUE D'UN EXERCICE
-# ─────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+
 def show_exercise_history(exercise: str, weights: Dict[str, Any], max_entries: int = 8) -> None:
     data = weights.get(exercise)
     if not data or "history" not in data or not data["history"]:
@@ -222,12 +205,13 @@ def show_exercise_history(exercise: str, weights: Dict[str, Any], max_entries: i
         print(f" ... et {len(data['history']) - max_entries} entrées plus anciennes")
     print(f"{'═' * 70}")
 
-# ─────────────────────────────
-# LOG HIIT
-# ─────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# LOG HIIT (KV)
+# ──────────────────────────────────────────────────────────────────────────────
+
 def log_hiit_session(week: int) -> Dict[str, Any]:
-    from hiit import get_hiit_str, get_hiit
-    from menu_select import selectionner
+    from .hiit import get_hiit_str, get_hiit
+    from .menu_select import selectionner
 
     print(f"\n{'═' * 60}")
     print(f" LOG HIIT – Semaine {week}")
@@ -259,28 +243,20 @@ def log_hiit_session(week: int) -> Dict[str, Any]:
         "comment": comment,
     }
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if HIIT_FILE.exists():
-        hiit_log = json.loads(HIIT_FILE.read_text(encoding="utf-8"))
-    else:
-        hiit_log = []
-    hiit_log.insert(0, entry)
-    HIIT_FILE.write_text(json.dumps(hiit_log, indent=2, ensure_ascii=False), encoding="utf-8")
+    log = get_json(KEY_HIIT_LOG, []) or []
+    log.insert(0, entry)
+    set_json(KEY_HIIT_LOG, log)
 
     print(f"\n✅ HIIT loggué ! ({rounds}/{planned_rounds} rounds - {feeling})\n")
     return entry
 
+# ──────────────────────────────────────────────────────────────────────────────
+# HISTORIQUE HIIT (KV)
+# ──────────────────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────
-# HISTORIQUE HIIT
-# ─────────────────────────────
 def show_hiit_history(max_entries: int = 10) -> None:
-    if not HIIT_FILE.exists():
-        print("\nAucun HIIT loggué pour l'instant.")
-        return
-
-    hiit_log = json.loads(HIIT_FILE.read_text(encoding="utf-8"))
-    if not hiit_log:
+    log = get_json(KEY_HIIT_LOG, []) or []
+    if not log:
         print("\nAucun HIIT loggué pour l'instant.")
         return
 
@@ -290,15 +266,15 @@ def show_hiit_history(max_entries: int = 10) -> None:
     print(f"{'Date':<12} {'S.':<4} {'Rounds':<10} {'Vitesse':<12} {'RPE':<6} {'Feeling':<15} Commentaire")
     print("─" * 75)
 
-    for entry in hiit_log[:max_entries]:
+    for entry in log[:max_entries]:
         rounds = f"{entry['rounds_complétés']}/{entry['rounds_planifiés']}"
         speed = f"{entry['vitesse_max']} km/h" if entry.get("vitesse_max") else "—"
-        rpe = str(entry['rpe']) if entry.get("rpe") else "—"
+        rpe = str(entry["rpe"]) if entry.get("rpe") else "—"
         feeling = entry.get("feeling", "—")
         comment = entry.get("comment", "—") or "—"
         print(f"{entry['date']:<12} {entry['week']:<4} {rounds:<10} {speed:<12} {rpe:<6} {feeling:<15} {comment}")
 
     print("─" * 75)
-    if len(hiit_log) > max_entries:
-        print(f" ... et {len(hiit_log) - max_entries} entrées plus anciennes")
+    if len(log) > max_entries:
+        print(f" ... et {len(log) - max_entries} entrées plus anciennes")
     print(f"{'═' * 75}")
