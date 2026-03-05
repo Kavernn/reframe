@@ -1,6 +1,6 @@
 # main.py
 
-from app import TrainingOSApp
+from api.index import TrainingOSApp
 
 if __name__ == "__main__":
     app = TrainingOSApp()

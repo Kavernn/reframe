@@ -1,4 +1,4 @@
-# app.py
+# index.py
 
 import sys
 from datetime import date, datetime
@@ -15,8 +15,15 @@ from body_weight import log_body_weight, afficher_historique_poids, load_body_we
 from goals import gerer_objectifs, afficher_objectifs, check_goals_achieved
 
 
+from flask import Flask, render_template
 
+app = Flask(__name__,
+            template_folder='../templates',   # monte d'un niveau pour trouver templates/
+            static_folder='../static')
 
+@app.route('/')
+def home():
+    return render_template('index.html')
 
 START_DATE = date(2026, 3, 3)  # ← Change cette date si tu recommences un cycle
 
