@@ -422,12 +422,25 @@
   </script>
 
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/static/sw.js')
-        .then(() => console.log('✅ Service Worker enregistré'))
-        .catch(err => console.log('❌ SW Error:', err));
-    }
-  </script>
+  // Idéalement : place ce bloc juste avant </body>
+  // OU dans un fichier .js externe avec defer
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {   // ← Ajout important
+      navigator.serviceWorker.register('/static/sw.js', { scope: '/' })  // ← scope explicite
+        .then(registration => {
+          console.log('✅ Service Worker enregistré avec succès ! Scope:', registration.scope);
+
+          // Bonus : écoute les updates (très utile en prod)
+          registration.addEventListener('updatefound', () => {
+            console.log('Nouvelle version du SW détectée...');
+          });
+        })
+        .catch(err => {
+          console.error('❌ Erreur lors de l\'enregistrement du Service Worker:', err);
+        });
+    });
+  }
+</script>
 
   {% block extra_js %}{% endblock %}
 
