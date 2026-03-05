@@ -1,11 +1,13 @@
 # index.py
 
 import sys
-from datetime import date, datetime
 import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
+
+from datetime import date, datetime
 import json
-
-
 
 from planner import get_today, get_week_schedule, get_suggested_weights_for_today, load_program, save_program
 from hiit import get_hiit_str
@@ -18,11 +20,7 @@ from deload import afficher_rapport_deload, analyser_deload, load_deload_state
 from body_weight import log_body_weight, afficher_historique_poids, load_body_weight, get_tendance
 from goals import gerer_objectifs, afficher_objectifs, check_goals_achieved
 
-
 from flask import Flask, render_template
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, BASE_DIR)
 
 def get_data_path(filename):
     return os.path.join(BASE_DIR, 'data', filename)
