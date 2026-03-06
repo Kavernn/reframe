@@ -41,6 +41,7 @@ app.secret_key = os.getenv("SECRET_KEY", "trainingos-secret-change-in-prod")
 UPLOAD_FOLDER      = os.path.join(BASE_DIR, "static", "uploads")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+RAPID_API_KEY = os.getenv("X_RAPIDAPI_KEY")
 
 
 # ── Helpers ─────────────────────────────────────────────────
@@ -365,33 +366,75 @@ def api_delete_hiit():
     return jsonify({"error": "Index introuvable"}), 400
 
 
+import os
+import requests
+from flask import request, jsonify
+
+# Assure-toi que cette variable est bien configurée dans ton Vercel
+RAPID_API_KEY = os.getenv("X_RAPIDAPI_KEY")
+
+
 @app.route("/api/save_exercise", methods=["POST"])
 def api_save_exercise():
-    data          = request.json
+    from inventory import save_inventory, load_inventory
+    import os
+    import requests
+    data = request.json
     original_name = data.get("original_name", "")
-    name          = data.get("name", "").strip()
+    name = data.get("name", "").strip()
 
     if not name:
         return jsonify({"error": "Nom manquant"}), 400
 
     inv = load_inventory()
+
+    # Gestion du renommage
     if original_name and original_name != name and original_name in inv:
         del inv[original_name]
 
+    # --- RECHERCHE AUTOMATIQUE DU GIF ---
+    # On récupère le GIF actuel s'il existe pour ne pas le perdre
+    existing_gif = inv.get(name, {}).get("gif_url")
+    gif_url = data.get("gif_url") or existing_gif
+
+    # Si on n'a toujours pas de GIF et qu'on a une clé API, on cherche
+    if not gif_url and RAPID_API_KEY:
+        try:
+            api_url = f"https://exercisedb.p.rapidapi.com/exercises/name/{name.lower()}"
+            headers = {
+                "X-RapidAPI-Key": RAPID_API_KEY,
+                "X-RapidAPI-Host": "exercisedb.p.rapidapi.com"
+            }
+            # On limite à 1 résultat pour économiser le quota
+            response = requests.get(api_url, headers=headers, params={"limit": "1"}, timeout=5)
+            if response.status_code == 200:
+                res_json = response.json()
+                if res_json and len(res_json) > 0:
+                    gif_url = res_json[0].get("gifUrl")
+        except Exception as e:
+            print(f"Erreur ExerciseDB : {e}")
+
+    # Mise à jour du dictionnaire avec tes champs existants + le GIF
     inv[name] = {
-        "type":           data.get("type", "machine"),
-        "increment":      float(data.get("increment", 5)),
-        "bar_weight":     float(data.get("bar_weight", 0)),
+        "type": data.get("type", "machine"),
+        "increment": float(data.get("increment", 5)),
+        "bar_weight": float(data.get("bar_weight", 0)),
         "default_scheme": data.get("default_scheme", "3x8-12"),
-        "muscles":        data.get("muscles", []),
-        "tips":           data.get("tips", ""),
-        "category":       data.get("category", ""),
-        "pattern":        data.get("pattern", ""),
-        "level":          data.get("level", ""),
+        "muscles": data.get("muscles", []),
+        "tips": data.get("tips", ""),
+        "category": data.get("category", ""),
+        "pattern": data.get("pattern", ""),
+        "level": data.get("level", ""),
+        "gif_url": gif_url  # Ajout du lien vers la démo
     }
 
-    save_inventory(inv)
-    return jsonify({"success": True})
+    # Sauvegarde via db.py (Supabase)
+    success = save_inventory(inv)
+
+    if not success:
+        return jsonify({"success": False, "error": "Erreur de sauvegarde Supabase"}), 500
+
+    return jsonify({"success": True, "gif_url": gif_url})
 
 
 @app.route("/api/delete_exercise", methods=["POST"])

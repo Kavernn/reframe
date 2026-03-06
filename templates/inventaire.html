@@ -299,67 +299,39 @@
   {% else %}
   <div id="exo-list">
     {% for name, info in inventory.items() | sort %}
-    <div class="exo-row"
-         data-name="{{ name | lower }}"
-         data-type="{{ info.type }}"
-         data-category="{{ info.category | default('') }}"
-         data-level="{{ info.level | default('') }}">
-      <div style="flex: 1; min-width: 0;">
-        <div class="exo-row-name">{{ name }}</div>
-        <div class="exo-row-meta">
-          +{{ info.increment }} lbs · {{ info.default_scheme }}
-          {% if info.bar_weight %} · barre {{ info.bar_weight }} lbs{% endif %}
-        </div>
+<div class="exo-row"
+     data-name="{{ name | lower }}"
+     data-type="{{ info.type }}"
+     data-category="{{ info.category | default('') }}"
+     data-level="{{ info.level | default('') }}">
 
-        <!-- BADGES -->
-        <div class="badge-row">
-          <!-- Type -->
-          <span class="tag tag-{{ info.type }}">{{ info.type }}</span>
+  {% if info.gif_url %}
+  <div style="width: 60px; height: 60px; flex-shrink: 0; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
+    <img src="{{ info.gif_url }}" alt="Démo" style="width: 100%; height: 100%; object-fit: cover;">
+  </div>
+  {% else %}
+  <div style="width: 60px; height: 60px; flex-shrink: 0; background: var(--bg2); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
+    <span style="font-size: 1.2rem; opacity: 0.3;">🏋️</span>
+  </div>
+  {% endif %}
 
-          <!-- Category -->
-          {% if info.category %}
-          <span class="tag tag-{{ info.category }}">
-            {% if info.category == 'push' %}🔴{% elif info.category == 'pull' %}🔵{% elif info.category == 'legs' %}🟢{% elif info.category == 'core' %}🟠{% elif info.category == 'mobility' %}🟣{% endif %}
-            {{ info.category }}
-          </span>
-          {% endif %}
-
-          <!-- Pattern -->
-          {% if info.pattern %}
-          <span class="tag tag-pattern">{{ info.pattern | replace('_', ' ') }}</span>
-          {% endif %}
-
-          <!-- Level -->
-          {% if info.level %}
-          <span class="tag tag-{{ info.level }}">
-            {% if info.level == 'beginner' %}🟢{% elif info.level == 'intermediate' %}🟠{% elif info.level == 'advanced' %}🔴{% endif %}
-            {{ info.level }}
-          </span>
-          {% endif %}
-        </div>
-
-        <!-- Muscles -->
-        {% if info.muscles %}
-        <div style="margin-top: 5px;">
-          {% for m in info.muscles %}
-          <span class="muscle-tag">{{ m }}</span>
-          {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Tips -->
-        {% if info.tips %}
-        <div style="margin-top: 5px; font-size: 0.72rem; color: var(--muted); font-style: italic;">
-          💡 {{ info.tips }}
-        </div>
-        {% endif %}
-      </div>
-
-      <div class="exo-actions">
-        <button class="btn-icon" data-exo-name="{{ name }}" onclick="openEditModal(this)" title="Modifier">✏️</button>
-        <button class="btn-icon delete" data-exo-name="{{ name }}" onclick="deleteExo(this)" title="Supprimer">🗑️</button>
-      </div>
+  <div style="flex: 1; min-width: 0; margin-left: 4px;">
+    <div class="exo-row-name">{{ name }}</div>
+    <div class="exo-row-meta">
+      +{{ info.increment }} lbs · {{ info.default_scheme }}
+      {% if info.bar_weight %} · barre {{ info.bar_weight }} lbs{% endif %}
     </div>
+
+    <div class="badge-row">
+        <span class="tag tag-{{ info.type }}">{{ info.type }}</span>
+        </div>
+  </div>
+
+  <div class="exo-actions">
+    <button class="btn-icon" data-exo-name="{{ name }}" onclick="openEditModal(this)" title="Modifier">✏️</button>
+    <button class="btn-icon delete" data-exo-name="{{ name }}" onclick="deleteExo(this)" title="Supprimer">🗑️</button>
+  </div>
+</div>
     {% endfor %}
   </div>
   {% endif %}
@@ -466,6 +438,8 @@
     </div>
   </div>
 </div>
+
+
 
 <!-- MODAL SUPPRIMER -->
 <div class="modal-overlay" id="modal-delete">
