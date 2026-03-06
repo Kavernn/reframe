@@ -500,15 +500,14 @@ def api_programme():
 
 @app.route("/api/update_profile", methods=["POST"])
 def api_update_profile():
-    save_user_profile(request.json)
-    return jsonify({"success": True})
+    ok = save_user_profile(request.json)
+    if ok:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Erreur sauvegarde Supabase"}), 500
 
 
 @app.route("/api/update_profile_photo", methods=["POST"])
 def api_update_profile_photo():
-    if _ON_VERCEL:
-        return jsonify({"success": False, "error": "Upload photo non supporté sur Vercel"}), 400
-
     if 'photo' not in request.files:
         return jsonify({"success": False, "error": "Fichier manquant"}), 400
 
@@ -516,18 +515,22 @@ def api_update_profile_photo():
     if not file or file.filename == '':
         return jsonify({"success": False, "error": "Aucun fichier"}), 400
 
-    filename    = secure_filename(file.filename)
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    # Vérifie la taille (max 1MB pour rester dans les limites Supabase KV)
+    file_bytes = file.read()
+    if len(file_bytes) > 1_000_000:
+        return jsonify({"success": False, "error": "Image trop lourde (max 1MB)"}), 400
 
-    profile         = load_user_profile()
-    profile['photo'] = filename
+    import base64, mimetypes
+    mime = file.mimetype or mimetypes.guess_type(file.filename)[0] or "image/jpeg"
+    b64  = base64.b64encode(file_bytes).decode("utf-8")
+    data_url = f"data:{mime};base64,{b64}"
+
+    profile = load_user_profile()
+    profile["photo_b64"] = data_url
+    profile.pop("photo", None)  # supprime l'ancienne clé fichier si présente
     save_user_profile(profile)
 
-    return jsonify({
-        "success":   True,
-        "photo_url": url_for('static', filename='uploads/' + filename)
-    })
+    return jsonify({"success": True, "photo_url": data_url})
 
 
 @app.route("/api/set_goal", methods=["POST"])
