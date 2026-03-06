@@ -1,800 +1,554 @@
 # api/index.py
-# api/index.py
 from __future__ import annotations
-import os
-import sys
-import json
-from datetime import date, datetime
+import os, sys, json, socket, webbrowser
+from threading import Timer
+from datetime import datetime, date
+from pathlib import Path
 
-# ✅ Imports RELATIFS (package api)
-from .planner import (
-    get_today,
-    get_week_schedule,
-    get_suggested_weights_for_today,
-    load_program,
-    save_program,
-)
-from .hiit import get_hiit_str
-from .log_workout import (
-    load_weights,
-    save_weights,
-    log_single_exercise,
-    show_exercise_history,
-    log_hiit_session,
-    show_hiit_history,
-)
-from .inventory import load_inventory, add_exercise, save_inventory
-from .user_profile import load_user_profile, save_user_profile, setup_user_profile
-from .stats import generate_dashboard
-from .sessions import (
-    load_sessions,
-    save_sessions,
-    log_session,
-    get_last_sessions,
-    migrate_sessions_from_weights,
-)
-from .deload import afficher_rapport_deload, analyser_deload, load_deload_state
-from .body_weight import log_body_weight, afficher_historique_poids, load_body_weight, get_tendance
-from .goals import gerer_objectifs, afficher_objectifs, check_goals_achieved
-from flask import Flask, render_template
+# ✅ Ajoute /api au path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Dossiers templates/static situés à la racine du repo (../ depuis /api)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory
+from werkzeug.utils import secure_filename
+
+from planner      import get_today, get_week_schedule, get_suggested_weights_for_today, load_program, save_program
+from hiit         import get_hiit_str
+from log_workout  import load_weights, save_weights, log_single_exercise
+from inventory    import load_inventory, save_inventory, calculate_plates
+from sessions     import load_sessions, log_session
+from user_profile import load_user_profile, save_user_profile
+from progression  import estimate_1rm, should_increase, next_weight, parse_reps, progression_status
+from deload       import analyser_deload, load_deload_state
+from goals        import load_goals, check_goals_achieved, get_progress_bar, set_goal
+from body_weight  import load_body_weight, log_body_weight, get_tendance
+from db           import get_json, set_json
+
+# ── App config ──────────────────────────────────────────────
+_ON_VERCEL = bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
+BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 app = Flask(
     __name__,
-    template_folder="../templates",
-    static_folder="../static",
+    template_folder = os.path.join(BASE_DIR, "templates"),
+    static_folder   = os.path.join(BASE_DIR, "static"),
 )
+app.secret_key = os.getenv("SECRET_KEY", "trainingos-secret-change-in-prod")
 
-@app.route("/")
-def home():
-    # Page d’accueil (si tu exposes un endpoint via Vercel/Flask)
-    return render_template("index.html")
+UPLOAD_FOLDER      = os.path.join(BASE_DIR, "static", "uploads")
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                    LOGIQUE PROGRAMME / CONSOLE (CLI)
-# ─────────────────────────────────────────────────────────────────────────────
-
-START_DATE = date(2026, 3, 3)  # ← change si tu recommences un cycle
+# ── Helpers ─────────────────────────────────────────────────
 
 def get_current_week() -> int:
-    """Retourne la semaine réelle du programme basée sur START_DATE."""
-    delta = date.today() - START_DATE
+    START_DATE = date(2026, 3, 3)
+    delta      = date.today() - START_DATE
     return max(1, (delta.days // 7) + 1)
 
 
-class TrainingOSApp:
-    """
-    Application console principale avec menus.
-    Toutes les fonctionnalités historiques sont conservées.
-    """
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-    def __init__(self):
-        self.weights = load_weights()
-        self.inventory = load_inventory()
-        self.program = load_program()
 
-        # Migration one-shot : déplace sessions de weights.json → sessions.json
-        if "sessions" in self.weights:
-            n = migrate_sessions_from_weights(self.weights)
-            if n > 0:
-                print(f"✅ {n} sessions migrées vers sessions.json")
-            del self.weights["sessions"]
-            save_weights(self.weights)
+def load_hiit_log_local() -> list:
+    return get_json("hiit_log", [])
 
-        achieved = check_goals_achieved(self.weights)
-        for ex in achieved:
-            print(f"\n 🏆 OBJECTIF ATTEINT : {ex} ! Félicitations ! 🎉")
 
-        # Alerte deload au démarrage
-        self._check_deload_alerte()
+def save_hiit_log_local(hiit_log: list):
+    set_json("hiit_log", hiit_log)
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Helpers internes
-    # ──────────────────────────────────────────────────────────────────────
-    def _check_deload_alerte(self):
-        """Affiche une alerte discrète si deload recommandé."""
-        state = load_deload_state()
-        rapport = analyser_deload(self.weights)
-        if state.get("active"):
-            print(f"\n 🔄 RAPPEL : Semaine de deload en cours (depuis {state.get('since','?')})")
-        elif rapport.get("recommande"):
-            print(f"\n ⚠️ Deload recommandé – consulte l'option 15 pour les détails")
 
-    def clear_screen(self):
-        print("\033[H\033[J", end="")
+# ── Pages HTML ───────────────────────────────────────────────
 
-    def afficher_menu_principal(self):
-        self.clear_screen()
-        week = get_current_week()
-        print("\n" + "═" * 60)
-        print(" LET'S GO !!")
-        print("═" * 60)
-        print(f"Aujourd'hui : {datetime.now().strftime('%Y-%m-%d')} → {get_today()} \n Semaine {week}")
-        print("═" * 60 + "\n")
+@app.route("/")
+def index():
+    weights      = load_weights()
+    profile      = load_user_profile()
+    suggestions  = get_suggested_weights_for_today(weights)
+    goals        = load_goals()
+    full_program = load_program()
+    deload_state = load_deload_state()
+    sessions     = load_sessions()
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Boucle principale
-    # ──────────────────────────────────────────────────────────────────────
-    def run(self):
-        from menu_select import menu_principal  # import local pour garder ce module optionnel
+    goals_progress = {}
+    for ex, goal in goals.items():
+        current = weights.get(ex, {}).get("current_weight", 0) or 0
+        goals_progress[ex] = {
+            "current":  current,
+            "goal":     goal["goal_weight"],
+            "bar":      get_progress_bar(current, goal["goal_weight"]),
+            "achieved": goal.get("achieved", False),
+            "since":    deload_state.get("since", "")
+        }
 
-        MENU = [
-            "1. Log ma séance d'aujourd'hui",
-            "2. Voir les poids recommandés",
-            "3. Planning de la semaine",
-            "4. HIIT de la semaine",
-            "5. Historique d'un exercice",
-            "6. Voir notes / RPE des séances",
-            "7. Gérer l'inventaire des exercices",
-            "8. Modifier le programme hebdomadaire",
-            "9. Configurer / modifier mon profil",
-            "10. Voir mon récap intelligent",
-            "11. Voir catalogue des exercices",
-            "12. 📊 Dashboard stats (navigateur)",
-            "13. 🏃 Historique HIIT",
-            "14. 📝 Voir mes programmes",
-            "15. 🔄 Analyse deload",
-            "16. ⚖️ Suivi poids corporel",
-            "17. 🎯 Mes objectifs personnels",
-            "──────────────────────────────────────────────",
-            "0. Quitter",
-        ]
+    return render_template("index.html",
+        today        = get_today(),
+        week         = get_current_week(),
+        profile      = profile,
+        suggestions  = suggestions,
+        goals        = goals_progress,
+        schedule     = get_week_schedule(),
+        full_program = full_program,
+        deload_state = deload_state,
+        sessions     = sessions,
+        now          = datetime.now().strftime("%A")
+    )
 
-        while True:
-            self.afficher_menu_principal()
-            choix = menu_principal("Que veux-tu faire ?", MENU)
 
-            if not choix or choix.startswith("0.") or choix.startswith("──"):
-                if choix and choix.startswith("0."):
-                    print("\nGarde la promesse que tu t'es fait à toi-même, lock n loaded !\n")
-                sys.exit(0)
+@app.route("/inventaire")
+def inventaire():
+    return render_template("inventaire.html", inventory=load_inventory())
 
-            if   choix.startswith("1."): self.log_seance_aujourdhui()
-            elif choix.startswith("2."): self.voir_poids_recommandes()
-            elif choix.startswith("3."): self.afficher_planning_semaine()
-            elif choix.startswith("4."): self.voir_hiit_semaine()
-            elif choix.startswith("5."): self.voir_historique_exercice()
-            elif choix.startswith("6."): self.voir_notes_seances()
-            elif choix.startswith("7."): self.gerer_inventaire()
-            elif choix.startswith("8."): self.modifier_programme()
-            elif choix.startswith("9."): self.setup_or_edit_profile()
-            elif choix.startswith("10."): self.show_recap_intelligent()
-            elif choix.startswith("11."): self.voir_catalogue_exercices()
-            elif choix.startswith("12."): self.voir_dashboard_stats()
-            elif choix.startswith("13."): self.voir_historique_hiit()
-            elif choix.startswith("14."): self.voir_programme_complet()
-            elif choix.startswith("15."): self.voir_analyse_deload()
-            elif choix.startswith("16."): self.voir_suivi_poids()
-            elif choix.startswith("17."): self.voir_objectifs()
 
-            input("\nAppuie sur Entrée pour revenir au menu...")
+@app.route("/programme")
+def programme():
+    return render_template("programme.html",
+        program   = load_program(),
+        inventory = load_inventory(),
+        today     = get_today(),
+        schedule  = get_week_schedule()
+    )
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Entrées du menu
-    # ──────────────────────────────────────────────────────────────────────
-    def voir_objectifs(self):
-        gerer_objectifs(self.weights)
 
-    def log_seance_aujourdhui(self):
-        from menu_select import selectionner  # import local pour CLI
+@app.route("/seance")
+def seance():
+    weights = load_weights()
+    today   = get_today()
 
-        today_session = get_today()
-        today_date = datetime.now().strftime("%Y-%m-%d")
+    if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery']:
+        return redirect(url_for('seance_speciale', session_type=today))
 
-        print(f"\n{'═' * 70}")
-        print(f" SÉANCE DU {today_date} → {today_session}")
-        print(f"{'═' * 70}\n")
+    program   = load_program()
+    inv       = load_inventory()
+    exercises = []
 
-        suggestions = get_suggested_weights_for_today(self.weights)
-        if suggestions:
-            print("POIDS RECOMMANDÉS POUR AUJOURD'HUI :")
-            for item in suggestions:
-                print(f" {item['exercise']:<25} {item['display']}")
-            print()
+    if today in program:
+        for ex, scheme in program[today].items():
+            data    = weights.get(ex, {})
+            ex_info = inv.get(ex, {})
+            current = data.get("current_weight", 0) or 0
+            ex_type = ex_info.get("type", "machine")
+            bar_w   = ex_info.get("bar_weight", 45.0)
 
-        state = load_deload_state()
-        if state.get("active"):
-            print(" 🔄 DELOAD EN COURS – utilise les poids à -15% aujourd'hui !")
-            print(f" Depuis le {state.get('since','?')} – raison : {state.get('reason','—')}\n")
-
-        # Jours spéciaux HIIT/Yoga/Recovery
-        if "HIIT" in today_session or today_session in ["Yoga", "Recovery"]:
-            if "HIIT" in today_session:
-                week = get_current_week()
-                print(f"🏃 HIIT DU JOUR (Semaine {week})\n " + get_hiit_str(week))
-                reponse = selectionner("As-tu fait ton HIIT ?", ["Oui 🏃", "Non"])
-                if reponse == "Oui 🏃":
-                    log_hiit_session(week)
+            if ex_type == "barbell" and current:
+                display = f"{(current - bar_w) / 2:.1f} lbs par côté"
+            elif ex_type == "dumbbell" and current:
+                display = f"{current / 2:.1f} lbs par haltère"
             else:
-                emoji = "🧘" if today_session == "Yoga" else "😴"
-                print(f"{emoji} Jour de {today_session.lower()} – récupération")
-            input("\nAppuie Entrée pour continuer...")
-            return
+                display = f"{current:.1f} lbs" if current else "À définir"
 
-        # Séance musculation
-        if today_session not in self.program:
-            print("Aucun programme défini pour ce jour.")
-            return
+            plates_needed = []
+            if ex_type == "barbell" and current > bar_w:
+                plates_needed = calculate_plates(current, bar_w)
 
-        exercises = list(self.program[today_session].keys())
-        print(f"Exercices prévus ({len(exercises)}) :")
-        for i, ex in enumerate(exercises, 1):
-            print(f" {i:2}. {ex} {self.program[today_session][ex]}")
-        print()
+            exercises.append({
+                "name":    ex,
+                "scheme":  scheme,
+                "current": current,
+                "display": display,
+                "type":    ex_type,
+                "plates":  plates_needed,
+                "history": data.get("history", [])[:3],
+                "1rm":     data.get("history", [{}])[0].get("1rm", 0) if data.get("history") else 0
+            })
 
-        reponse = selectionner("As-tu fait ta séance aujourd'hui ?", ["Oui 💪", "Non, à demain"])
-        if reponse != "Oui 💪":
-            print("OK, à demain ! 💪")
-            return
+    return render_template("seance.html",
+        today    = today,
+        exercises = exercises,
+        is_hiit  = "HIIT" in today,
+        hiit_str = get_hiit_str(get_current_week()) if "HIIT" in today else "",
+        week     = get_current_week()
+    )
 
-        print("\nC'est parti...\n")
-        faits = 0
-        for exercise in exercises:
-            self.weights = log_single_exercise(exercise, self.weights)
-            if exercise in self.weights and self.weights[exercise].get("last_logged", "").startswith(today_date):
-                faits += 1
 
-        if faits > 0:
-            save_weights(self.weights)
-            achieved = check_goals_achieved(self.weights)
-            for ex in achieved:
-                print(f"\n 🏆 OBJECTIF ATTEINT : {ex} ! Félicitations Vincent ! 🎉")
-            print(f"\n{faits} exos enregistrés – super boulot ! 🔥")
+@app.route("/seance_speciale/<path:session_type>")
+def seance_speciale(session_type):
+    week = get_current_week()
+    if week <= 4:
+        protocole = {"rounds": 8,  "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 20}
+    elif week <= 8:
+        protocole = {"rounds": 10, "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 25}
+    elif week <= 12:
+        protocole = {"rounds": 12, "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 28}
+    elif week <= 16:
+        protocole = {"rounds": 8,  "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 20}
+    else:
+        protocole = {"rounds": 10, "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 25}
 
-        # RPE + Commentaire
-        print("\n" + "─" * 50)
-        rpe_str = input("RPE global (1-10, Entrée=skip) → ").strip()
-        rpe = int(rpe_str) if rpe_str.isdigit() and 1 <= int(rpe_str) <= 10 else None
-        comment = input("Commentaire / ressenti (Entrée=rien) → ").strip()
-        log_session(today_date, rpe, comment, exercises)
-        print("Note séance sauvegardée ✓")
+    return render_template("seance_speciale.html",
+        session_type = session_type,
+        protocole    = protocole,
+        week         = week,
+        now          = datetime.now().strftime("%Y-%m-%d")
+    )
 
-        # Message motivationnel
-        profile = load_user_profile()
-        goal = profile.get("goal", "force")
 
-        print("\n" + "─" * 50)
-        if goal == "force":
-            print(" Objectif force activé : continue à pousser les charges !")
-            if faits > 0:
-                print(" +5 lbs ou + reps sur un gros lift ? T'es sur la voie royale 💪")
-        elif goal == "hypertrophie":
-            print(" Objectif hypertrophie : bon volume – garde la tension musculaire !")
-            print(" Pense à bien manger après, c'est là que ça se construit 🔥")
-        elif goal == "perte de poids":
-            print(" Objectif perte de poids : séance solide – continue le déficit malin")
-            print(" Hydrate-toi bien et protège tes articulations !")
-        elif goal == "recomposition":
-            print(" Objectif recomposition : équilibre force/esthétique")
-            print(" T'as bien géré – prot et glucides post-entraînement !")
-        else:
-            print(" Objectif non défini – mets-le dans ton profil (option 9) !")
+@app.route("/historique")
+def historique():
+    weights   = load_weights()
+    inv       = load_inventory()
+    exercices = []
+    for ex, data in weights.items():
+        if ex == "sessions":
+            continue
+        info = inv.get(ex, {})
+        exercices.append({
+            "name":    ex,
+            "type":    info.get("type", "—"),
+            "muscles": info.get("muscles", []),
+            "history": data.get("history", [])[:10],
+            "current": data.get("current_weight", 0)
+        })
+    return render_template("historique.html", exercices=exercices)
 
-        if today_session in ["Upper A", "Upper B"]:
-            print(" Jour Upper : pecs/dos/épaules ont bien travaillé !")
-        elif today_session == "Lower":
-            print(" Jour Lower : jambes/fessiers en feu – t'as tout donné !")
-        print("─" * 50)
 
-    def voir_suivi_poids(self):
-        from menu_select import selectionner  # import local pour CLI
+@app.route("/hiit")
+def hiit_historique():
+    return render_template("hiit.html", hiit_log=load_hiit_log_local())
 
-        while True:
-            action = selectionner(
-                "Suivi poids corporel :",
-                ["⚖️ Logger mon poids aujourd'hui", "📋 Voir l'historique"],
-            )
-            if not action or action == "↩ Annuler":
-                break
 
-            if action.startswith("⚖️"):
-                poids_str = input("Ton poids aujourd'hui (kg) → ").strip()
-                if not poids_str:
-                    continue
-                try:
-                    poids = float(poids_str.replace(",", "."))
-                except ValueError:
-                    print("❌ Valeur invalide.")
-                    continue
-                note = input("Note (Entrée=rien) → ").strip()
-                log_body_weight(poids, note)
-            elif action.startswith("📋"):
-                afficher_historique_poids()
-                input("\nAppuie sur Entrée pour continuer...")
+@app.route("/notes")
+def notes():
+    return render_template("notes.html", sessions=load_sessions())
 
-    def voir_poids_recommandes(self):
-        suggestions = get_suggested_weights_for_today(self.weights)
-        if not suggestions:
-            print("\nAucune suggestion aujourd'hui.\n")
-            return
 
-        print("\nPOIDS RECOMMANDÉS :")
-        print("-" * 70)
-        for item in suggestions:
-            print(f" {item['exercise']:<25} → {item['display']}")
-        print("-" * 70)
+@app.route("/objectifs")
+def objectifs():
+    weights    = load_weights()
+    goals      = load_goals()
+    goals_data = []
+    for ex, goal in goals.items():
+        current = weights.get(ex, {}).get("current_weight", 0) or 0
+        pct     = min(current / goal["goal_weight"] * 100, 100) if goal["goal_weight"] else 0
+        goals_data.append({
+            "exercise": ex,
+            "current":  current,
+            "goal":     goal["goal_weight"],
+            "pct":      round(pct, 1),
+            "achieved": goal.get("achieved", False),
+            "deadline": goal.get("deadline", ""),
+        })
+    return render_template("objectifs.html", goals=goals_data)
 
-    def afficher_planning_semaine(self):
-        schedule = get_week_schedule()
-        today = get_today()
-        week = get_current_week()
 
-        print(f"\nPLANNING SEMAINE {week}")
-        print("-" * 40)
-        for d, s in schedule.items():
-            marker = " ◀ AUJOURD'HUI" if s == today else ""
-            print(f" {d} → {s}{marker}")
-        print("-" * 40)
+@app.route("/stats")
+def stats():
+    return render_template("stats.html",
+        weights     = load_weights(),
+        sessions    = load_sessions(),
+        hiit_log    = load_hiit_log_local(),
+        body_weight = load_body_weight(),
+        inventory   = load_inventory(),
+        now         = datetime.now().strftime("%Y-%m-%d")
+    )
 
-    def voir_hiit_semaine(self):
-        week = get_current_week()
-        print(f"\nHIIT SEMAINE {week} : {get_hiit_str(week)}")
 
-    def voir_historique_exercice(self):
-        from menu_select import selectionner  # import local pour CLI
-        exercices = [k for k in self.weights if k != "sessions"]
-        if not exercices:
-            print("Aucun exercice loggué pour l'instant.")
-            return
-        exo = selectionner("Quel exercice voir ?", exercices)
-        if exo and exo != "↩ Annuler":
-            show_exercise_history(exo, self.weights)
+@app.route("/profil")
+def profil():
+    profile     = load_user_profile()
+    body_weight = load_body_weight()
+    tendance    = get_tendance(body_weight) if body_weight else "Pas de données"
+    return render_template("profil.html",
+        profile     = profile,
+        body_weight = body_weight[:7] if body_weight else [],
+        tendance    = tendance
+    )
 
-    def voir_notes_seances(self):
-        sessions = get_last_sessions(10)
-        if not sessions:
-            print("\nAucune note enregistrée pour l'instant.")
-            print("Logge une séance et entre ton RPE à la fin ! 💪")
-            return
 
-        print("\n" + "═" * 65)
-        print(" NOTES & RPE DES DERNIÈRES SÉANCES")
-        print("═" * 65)
-        print(f"{'Date':<12} {'RPE':<6} {'Exercices':<30} Commentaire")
-        print("─" * 65)
+# ── API ──────────────────────────────────────────────────────
 
-        for s in sessions:
-            rpe_txt = f" {s['rpe']}/10" if s.get("rpe") else " —"
-            exos_txt = ", ".join(s.get("exos", [])) or "—"
-            if len(exos_txt) > 28:
-                exos_txt = exos_txt[:25] + "..."
-            comment = s.get("comment", "—") or "—"
-            print(f"{s['date']:<12} {rpe_txt:<6} {exos_txt:<30} {comment}")
+@app.route("/api/log", methods=["POST"])
+def api_log():
+    try:
+        data     = request.get_json()
+        exercise = data.get("exercise")
+        weight   = float(data.get("weight", 0))
+        reps_str = data.get("reps", "")
 
-        print("─" * 65)
-        rpes = [s["rpe"] for s in sessions if s.get("rpe")]
-        if rpes:
-            print(f"\n RPE moyen (dernières {len(rpes)} séances) : {sum(rpes) / len(rpes):.1f}/10")
-        print("═" * 65)
+        if not exercise or not reps_str:
+            return jsonify({"error": "Données manquantes"}), 400
 
-    def gerer_inventaire(self):
-        from menu_select import selectionner, selectionner_exercice_inventaire  # imports locaux
+        weights   = load_weights()
+        reps_list = parse_reps(reps_str)
+        reps      = ",".join(map(str, reps_list))
+        status    = progression_status(reps, exercise)
+        increase  = should_increase(reps, exercise)
+        new_w     = next_weight(exercise, weight) if increase else weight
+        onerm     = estimate_1rm(weight, reps)
 
-        while True:
-            print("\n" + "═" * 55)
-            print(" GESTION INVENTAIRE DES EXERCICES")
-            print("═" * 55)
-            action = selectionner("Que veux-tu faire ?", [
-                "➕ Créer un nouvel exercice",
-                "✏️ Modifier un exercice existant",
-                "🗑️ Supprimer un exercice",
-                "📋 Voir le catalogue complet",
-            ])
-            if not action or action == "↩ Annuler":
-                break
+        history_entry = {
+            "date":   datetime.now().strftime("%Y-%m-%d"),
+            "weight": round(weight, 1),
+            "reps":   reps,
+            "note":   f"+{new_w - weight:.1f}" if increase else "stagné",
+            "1rm":    onerm
+        }
 
-            inv = load_inventory()
+        if exercise not in weights:
+            weights[exercise] = {"history": []}
 
-            # Créer
-            if action.startswith("➕"):
-                print("\n── NOUVEL EXERCICE ─────────────────────────────")
-                nom = input("Nom de l'exercice → ").strip()
-                if not nom:
-                    print("Nom vide, annulé.")
-                    continue
+        weights[exercise].setdefault("history", []).insert(0, history_entry)
+        weights[exercise]["history"]        = weights[exercise]["history"][:20]
+        weights[exercise]["current_weight"] = round(new_w, 1)
+        weights[exercise]["last_reps"]      = reps
+        weights[exercise]["last_logged"]    = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-                if nom in inv:
-                    confirmer = selectionner(
-                        f"'{nom}' existe déjà. Écraser ?",
-                        ["Oui, écraser", "Non, annuler"]
-                    )
-                    if confirmer != "Oui, écraser":
-                        continue
+        save_weights(weights)
+        achieved = check_goals_achieved(weights)
 
-                ex_type = selectionner("Type d'équipement :", [
-                    "barbell", "dumbbell", "machine", "bodyweight", "cable"
-                ])
-                if not ex_type or ex_type == "↩ Annuler":
-                    continue
+        return jsonify({
+            "success":    True,
+            "status":     status,
+            "increase":   increase,
+            "new_weight": new_w,
+            "1rm":        onerm,
+            "achieved":   achieved
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-                inc_str = input("Incrément par défaut (lbs) [5] → ").strip()
-                try:
-                    inc = float(inc_str.replace(",", ".")) if inc_str else 5.0
-                except ValueError:
-                    inc = 5.0
-                scheme = input("Scheme par défaut (ex: 4x5-7) [3x8-12] → ").strip() or "3x8-12"
 
-                muscles_input = input("Muscles ciblés (séparés par virgule) → ").strip()
-                muscles = [m.strip() for m in muscles_input.split(",") if m.strip()] if muscles_input else []
+@app.route("/api/log_session", methods=["POST"])
+def api_log_session():
+    try:
+        data    = request.get_json()
+        today   = datetime.now().strftime("%Y-%m-%d")
+        rpe     = data.get("rpe")
+        comment = data.get("comment", "")
+        exos    = data.get("exos", [])
+        log_session(today, rpe, comment, exos)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-                bar_w = 45.0
-                if ex_type == "barbell":
-                    bar_str = input("Poids de la barre (lbs) [45] → ").strip()
-                    try:
-                        bar_w = float(bar_str) if bar_str else 45.0
-                    except ValueError:
-                        bar_w = 45.0
 
-                # Résumé
-                print("\n── Résumé ─────────────────────────────────────")
-                print(f" Nom : {nom}")
-                print(f" Type : {ex_type}")
-                print(f" Incrément : +{inc} lbs")
-                print(f" Scheme : {scheme}")
-                print(f" Muscles : {', '.join(muscles) or '—'}")
-                if ex_type == "barbell":
-                    print(f" Barre : {bar_w} lbs")
-                print("───────────────────────────────────────────────")
-                confirmer = selectionner("Confirmer la création ?", ["Oui ✅", "Non, annuler"])
-                if confirmer != "Oui ✅":
-                    print("Annulé.")
-                    continue
+@app.route("/api/log_hiit", methods=["POST"])
+def api_log_hiit():
+    data     = request.json
+    week     = get_current_week()
+    hiit_log = load_hiit_log_local()
 
-                add_exercise(nom, ex_type, inc, bar_w, scheme, muscles)
-                self.inventory = load_inventory()
+    entry = {
+        "date":             datetime.now().strftime("%Y-%m-%d"),
+        "week":             week,
+        "rounds_planifies": data.get("rounds", 0),
+        "rounds_completes": data.get("rounds", 0),
+        "vitesse_max":      data.get("speed"),
+        "rpe":              data.get("rpe"),
+        "feeling":          data.get("feeling", "—"),
+        "comment":          data.get("comment", "")
+    }
 
-            # Modifier
-            elif action.startswith("✏️"):
-                exo = selectionner_exercice_inventaire("Quel exercice modifier ?", inv)
-                if not exo or exo == "↩ Annuler":
-                    continue
-                info = inv[exo]
+    hiit_log.insert(0, entry)
+    save_hiit_log_local(hiit_log)
+    return jsonify({"success": True})
 
-                print(f"\n── Modification de '{exo}' ─────────────────────")
-                print(" Laisse vide + Entrée pour garder la valeur actuelle\n")
 
-                nouveau_nom = input(f"Nom [{exo}] → ").strip() or exo
+@app.route("/api/delete_hiit", methods=["POST"])
+def api_delete_hiit():
+    data     = request.json
+    index    = data.get("index")
+    hiit_log = load_hiit_log_local()
 
-                options_type = ["barbell", "dumbbell", "machine", "bodyweight", "cable", f"↩ Garder ({info['type']})"]
-                nouveau_type = selectionner(f"Type [{info['type']}] :", options_type)
-                if nouveau_type and nouveau_type.startswith("↩ Garder"):
-                    nouveau_type = info["type"]
+    if 0 <= index < len(hiit_log):
+        hiit_log.pop(index)
+        save_hiit_log_local(hiit_log)
+        return jsonify({"success": True})
 
-                inc_str = input(f"Incrément [{info['increment']} lbs] → ").strip()
-                try:
-                    nouvel_inc = float(inc_str.replace(",", ".")) if inc_str else info["increment"]
-                except ValueError:
-                    nouvel_inc = info["increment"]
+    return jsonify({"error": "Index introuvable"}), 400
 
-                nouveau_scheme = input(f"Scheme [{info.get('default_scheme', '3x8-12')}] → ").strip() or info.get("default_scheme", "3x8-12")
 
-                muscles_actuels = ", ".join(info.get("muscles", []))
-                muscles_input = input(f"Muscles [{muscles_actuels or '—'}] → ").strip()
-                nouveaux_muscles = [m.strip() for m in muscles_input.split(",") if m.strip()] if muscles_input else info.get("muscles", [])
+@app.route("/api/save_exercise", methods=["POST"])
+def api_save_exercise():
+    data          = request.json
+    original_name = data.get("original_name", "")
+    name          = data.get("name", "").strip()
 
-                nouvelle_barre = info.get("bar_weight", 45.0)
-                if nouveau_type == "barbell":
-                    bar_str = input(f"Poids barre [{info.get('bar_weight', 45.0)} lbs] → ").strip()
-                    try:
-                        nouvelle_barre = float(bar_str) if bar_str else info.get("bar_weight", 45.0)
-                    except ValueError:
-                        nouvelle_barre = info.get("bar_weight", 45.0)
+    if not name:
+        return jsonify({"error": "Nom manquant"}), 400
 
-                # Résumé
-                print("\n── Résumé des modifications ───────────────────")
-                print(f" Nom : {exo} → {nouveau_nom}")
-                print(f" Type : {info['type']} → {nouveau_type}")
-                print(f" Incrément : {info['increment']} → {nouvel_inc} lbs")
-                print(f" Scheme : {info.get('default_scheme', '—')} → {nouveau_scheme}")
-                print(f" Muscles : {muscles_actuels or '—'} → {', '.join(nouveaux_muscles) or '—'}")
-                if nouveau_type == "barbell":
-                    print(f" Barre : {info.get('bar_weight', 45.0)} → {nouvelle_barre} lbs")
-                print("───────────────────────────────────────────────")
+    inv = load_inventory()
+    if original_name and original_name != name and original_name in inv:
+        del inv[original_name]
 
-                confirmer = selectionner("Confirmer les modifications ?", ["Oui ✅", "Non, annuler"])
-                if confirmer != "Oui ✅":
-                    print("Annulé.")
-                    continue
+    inv[name] = {
+        "type":           data.get("type", "machine"),
+        "increment":      float(data.get("increment", 5)),
+        "bar_weight":     float(data.get("bar_weight", 0)),
+        "default_scheme": data.get("default_scheme", "3x8-12"),
+        "muscles":        data.get("muscles", []),
+        "tips":           data.get("tips", "")
+    }
 
-                # Si le nom a changé, supprime l'ancien
-                if nouveau_nom != exo:
-                    del inv[exo]
-                inv[nouveau_nom] = {
-                    "type": nouveau_type,
-                    "increment": nouvel_inc,
-                    "bar_weight": nouvelle_barre if nouveau_type == "barbell" else 0.0,
-                    "default_scheme": nouveau_scheme,
-                    "muscles": nouveaux_muscles,
-                }
-                save_inventory(inv)
-                self.inventory = load_inventory()
-                print(f"✅ '{nouveau_nom}' mis à jour !")
+    save_inventory(inv)
+    return jsonify({"success": True})
 
-            # Supprimer
-            elif action.startswith("🗑️"):
-                exo = selectionner_exercice_inventaire("Quel exercice supprimer ?", inv)
-                if not exo or exo == "↩ Annuler":
-                    continue
-                confirmer = selectionner(f"⚠️ Supprimer définitivement '{exo}' ?", ["Oui, supprimer", "Non, annuler"])
-                if confirmer == "Oui, supprimer":
-                    del inv[exo]
-                    save_inventory(inv)
-                    self.inventory = load_inventory()
-                    print(f"✅ '{exo}' supprimé de l'inventaire.")
-                else:
-                    print("Annulé.")
 
-            # Voir catalogue
-            elif action.startswith("📋"):
-                self.voir_catalogue_exercices()
-                input("\nAppuie sur Entrée pour revenir...")
+@app.route("/api/delete_exercise", methods=["POST"])
+def api_delete_exercise():
+    name = request.json.get("name")
+    inv  = load_inventory()
 
-    def modifier_programme(self):
-        from menu_select import selectionner, selectionner_exercice_inventaire, selectionner_exercice_programme
+    if name not in inv:
+        return jsonify({"error": "Exercice introuvable"}), 404
 
-        while True:
-            print("\n" + "═" * 50)
-            print(" MODIFIER LE PROGRAMME HEBDOMADAIRE")
-            print("═" * 50)
+    del inv[name]
+    save_inventory(inv)
+    return jsonify({"success": True})
 
-            # Sélection du jour
-            jour = selectionner("Quel jour modifier ?", list(self.program.keys()))
-            if not jour or jour == "↩ Annuler":
-                print("Retour au menu principal...")
-                break
 
-            # Affiche le programme du jour
-            print(f"\nExercices actuels pour {jour} :")
-            print("─" * 45)
-            for ex, sch in self.program[jour].items():
-                print(f" • {ex:<25} {sch}")
-            print("─" * 45)
+@app.route("/api/programme", methods=["POST"])
+def api_programme():
+    data    = request.json
+    action  = data.get("action")
+    jour    = data.get("jour")
+    program = load_program()
 
-            action = selectionner(
-                "Que veux-tu faire ?",
-                ["Ajouter un exercice", "Supprimer un exercice", "Remplacer un exercice", "Changer le scheme"],
-            )
-            if not action or action == "↩ Annuler":
+    if jour not in program:
+        return jsonify({"error": "Jour invalide"}), 400
+
+    if action == "add":
+        exercise = data.get("exercise")
+        scheme   = data.get("scheme", "3x8-12")
+        if exercise in program[jour]:
+            return jsonify({"error": "Déjà dans le programme"}), 400
+        program[jour][exercise] = scheme
+
+    elif action == "remove":
+        exercise = data.get("exercise")
+        if exercise in program[jour]:
+            del program[jour][exercise]
+
+    elif action == "scheme":
+        exercise = data.get("exercise")
+        scheme   = data.get("scheme")
+        if exercise in program[jour]:
+            program[jour][exercise] = scheme
+
+    elif action == "replace":
+        old_ex = data.get("old_exercise")
+        new_ex = data.get("new_exercise")
+        scheme = data.get("scheme", "3x8-12")
+        if old_ex in program[jour]:
+            del program[jour][old_ex]
+        program[jour][new_ex] = scheme
+
+    elif action == "reorder":
+        ordre         = data.get("ordre", [])
+        ancien        = program[jour]
+        program[jour] = {ex: ancien[ex] for ex in ordre if ex in ancien}
+
+    save_program(program)
+    return jsonify({"success": True})
+
+
+@app.route("/api/update_profile", methods=["POST"])
+def api_update_profile():
+    save_user_profile(request.json)
+    return jsonify({"success": True})
+
+
+@app.route("/api/update_profile_photo", methods=["POST"])
+def api_update_profile_photo():
+    if _ON_VERCEL:
+        return jsonify({"success": False, "error": "Upload photo non supporté sur Vercel"}), 400
+
+    if 'photo' not in request.files:
+        return jsonify({"success": False, "error": "Fichier manquant"}), 400
+
+    file = request.files['photo']
+    if not file or file.filename == '':
+        return jsonify({"success": False, "error": "Aucun fichier"}), 400
+
+    filename    = secure_filename(file.filename)
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+    profile         = load_user_profile()
+    profile['photo'] = filename
+    save_user_profile(profile)
+
+    return jsonify({
+        "success":   True,
+        "photo_url": url_for('static', filename='uploads/' + filename)
+    })
+
+
+@app.route("/api/set_goal", methods=["POST"])
+def api_set_goal():
+    data     = request.json
+    exercise = data.get("exercise")
+    weight   = float(data.get("weight", 0))
+    deadline = data.get("deadline")
+    note     = data.get("note", "")
+
+    if not exercise or not weight:
+        return jsonify({"error": "Données manquantes"}), 400
+
+    set_goal(exercise, weight, deadline, note)
+    return jsonify({"success": True})
+
+
+@app.route("/api/body_weight", methods=["POST"])
+def api_body_weight():
+    try:
+        data  = request.get_json()
+        poids = float(data.get("poids", 0))
+        note  = data.get("note", "")
+        if not poids:
+            return jsonify({"error": "Poids invalide"}), 400
+        log_body_weight(poids, note)
+        return jsonify({"success": True, "poids": poids})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/weights")
+def api_weights():
+    return jsonify(load_weights())
+
+
+@app.route("/api/inventory")
+def api_inventory():
+    return jsonify(load_inventory())
+
+
+@app.route("/api/sessions")
+def api_sessions():
+    return jsonify(load_sessions())
+
+
+@app.route("/api/deload")
+def api_deload():
+    return jsonify(analyser_deload(load_weights()))
+
+
+@app.route("/sw.js")
+def service_worker():
+    return send_from_directory(
+        os.path.join(BASE_DIR, "static"),
+        "sw.js",
+        mimetype="application/javascript"
+    )
+
+
+# ── Lancement local ──────────────────────────────────────────
+
+def find_free_port(start=5000, end=5100):
+    for port in range(start, end):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
                 continue
+    raise RuntimeError("Aucun port libre")
 
-            inv = load_inventory()
 
-            # Ajouter
-            if action == "Ajouter un exercice":
-                exo = selectionner_exercice_inventaire("Quel exercice ajouter ?", inv)
-                if not exo:
-                    continue
-                if exo in self.program[jour]:
-                    print(f"⚠️ '{exo}' est déjà dans {jour}.")
-                    continue
-                default_scheme = inv[exo].get("default_scheme", "3x8-12")
-                scheme = input(f"Scheme (Entrée = {default_scheme}) → ").strip() or default_scheme
-                self.program[jour][exo] = scheme
-                save_program(self.program)
-                print(f"✅ '{exo}' ajouté à {jour} avec scheme {scheme} !")
-
-            # Supprimer
-            elif action == "Supprimer un exercice":
-                exo = selectionner_exercice_programme("Quel exercice supprimer ?", self.program[jour])
-                if not exo:
-                    continue
-                from menu_select import selectionner as _sel
-                confirm = _sel(f"Confirmer la suppression de '{exo}' ?", ["Oui, supprimer", "Non, annuler"])
-                if confirm == "Oui, supprimer":
-                    del self.program[jour][exo]
-                    save_program(self.program)
-                    print(f"✅ '{exo}' supprimé de {jour}.")
-                else:
-                    print("Annulé.")
-
-            # Remplacer
-            elif action == "Remplacer un exercice":
-                exo_old = selectionner_exercice_programme("Quel exercice remplacer ?", self.program[jour])
-                if not exo_old:
-                    continue
-                exo_new = selectionner_exercice_inventaire(f"Remplacer '{exo_old}' par quel exercice ?", inv)
-                if not exo_new:
-                    continue
-                if exo_new == exo_old:
-                    print("C'est le même exercice, rien changé.")
-                    continue
-                ancien_scheme = self.program[jour].pop(exo_old)
-                nouveau_scheme = inv[exo_new].get("default_scheme", ancien_scheme)
-                scheme = input(f"Scheme (Entrée = {nouveau_scheme}) → ").strip() or nouveau_scheme
-                self.program[jour][exo_new] = scheme
-                save_program(self.program)
-                print(f"✅ '{exo_old}' remplacé par '{exo_new}' (scheme: {scheme}) !")
-
-            # Changer scheme
-            elif action == "Changer le scheme":
-                exo = selectionner_exercice_programme("Pour quel exercice changer le scheme ?", self.program[jour])
-                if not exo:
-                    continue
-                actuel = self.program[jour][exo]
-                print(f" Scheme actuel : {actuel}")
-                new_scheme = input("Nouveau scheme → ").strip()
-                if not new_scheme:
-                    print("Rien changé.")
-                    continue
-                self.program[jour][exo] = new_scheme
-                save_program(self.program)
-                print(f"✅ Scheme de '{exo}' changé : {actuel} → {new_scheme}")
-
-    def setup_or_edit_profile(self):
-        setup_user_profile()
-        self.user_profile = load_user_profile()
-
-    def show_recap_intelligent(self):
-        print("\n" + "═" * 60)
-        print(" RÉCAP PERSONNALISÉ")
-        print("═" * 60)
-
-        profile = load_user_profile()
-        print(
-            f"Profil : {profile.get('name') or 'Vince'}, {profile.get('age') or '?'} ans, "
-            f"{profile.get('level','—')} – Objectif : {profile.get('goal','—')}"
-        )
-        print(f"Unités : {profile.get('units','—')} \n Semaine du programme : {get_current_week()}")
-
-        big_lifts = ["Bench Press", "Back Squat", "Romanian Deadlift", "Overhead Press"]
-        print("\nProgression 1RM (estimée) – derniers logs :")
-        for lift in big_lifts:
-            if lift in self.weights and self.weights[lift].get("history"):
-                latest = self.weights[lift]["history"][0]
-                print(f" {lift:<20} {latest['1rm']:.1f} lbs ({latest['date']})")
-            else:
-                print(f" {lift:<20} pas encore logué")
-
-        print("\nExos stagnants (même poids ≥ 3 séances) :")
-        stagnants = []
-        for ex, data in self.weights.items():
-            if ex == "sessions":
-                continue
-            hist = data.get("history", [])
-            if len(hist) >= 3:
-                last3_weights = [e["weight"] for e in hist[:3]]
-                if len(set(last3_weights)) == 1:
-                    stagnants.append(f"{ex} ({last3_weights[0]} lbs ×3)")
-        if stagnants:
-            print(" " + "\n ".join(stagnants))
-            print(" → Suggestion : deload 10-15% ou changer scheme")
-        else:
-            print(" Aucun exo stagné récemment – continue le grind ! 🔥")
-
-        print("\nRécap global :")
-        sessions = self.weights.get("sessions", {})
-        if sessions:
-            last_date = max(sessions.keys())
-            last_rpe = sessions[last_date].get("rpe", "—")
-            print(f" Dernière séance : {last_date} (RPE {last_rpe})")
-        else:
-            print(" Pas encore de séances loguées.")
-        print("═" * 60)
-
-    def voir_catalogue_exercices(self):
-        print("\n" + "═" * 70)
-        print(" CATALOGUE DES EXERCICES (Inventaire complet)")
-        print("═" * 70)
-        inv = load_inventory()
-        if not inv:
-            print("Aucun exercice dans l'inventaire pour l'instant.")
-            return
-        for ex, info in sorted(inv.items()):
-            muscles = ", ".join(info.get("muscles", [])) or "non spécifié"
-            bar = f" (barre {info.get('bar_weight', 45)} lbs)" if info.get("type") == "barbell" else ""
-            print(f" • {ex:<25}")
-            print(f"   Type: {info.get('type','—'):<12} Incrément: +{info.get('increment','—')} lbs{bar}")
-            print(f"   Scheme défaut: {info.get('default_scheme', '—')}")
-            print(f"   Muscles ciblés: {muscles}")
-            print("─" * 70)
-
-    def voir_dashboard_stats(self):
-        generate_dashboard()
-
-    def voir_historique_hiit(self):
-        show_hiit_history()
-
-    def voir_programme_complet(self):
-        from menu_select import selectionner, selectionner_exercice_inventaire, selectionner_exercice_programme
-
-        while True:
-            jour = selectionner("Quel programme ?", list(self.program.keys()))
-            if not jour or jour == "↩ Annuler":
-                break
-
-            while True:
-                inv = load_inventory()
-
-                print(f"\n{'═' * 65}")
-                print(f" PROGRAMME {jour.upper()}")
-                print(f"{'═' * 65}")
-                print(f"{'Exercice':<25} {'Scheme':<12} {'Type':<10} {'Muscles'}")
-                print("─" * 65)
-                for ex, scheme in self.program[jour].items():
-                    info = inv.get(ex, {})
-                    ex_type = info.get("type", "—")
-                    muscles = ", ".join(info.get("muscles", [])) or "—"
-                    print(f"{ex:<25} {scheme:<12} {ex_type:<10} {muscles}")
-                print("─" * 65)
-                print(f" Total : {len(self.program[jour])} exercices")
-                print(f"{'═' * 65}\n")
-
-                action = selectionner(
-                    f"Que veux-tu faire avec {jour} ?",
-                    [
-                        "➕ Ajouter un exercice du catalogue",
-                        "🗑️ Supprimer un exercice",
-                        "🔄 Remplacer un exercice",
-                        "✏️ Changer le scheme d'un exercice",
-                        "↩ Choisir un autre programme",
-                    ],
-                )
-                if not action or action == "↩ Annuler" or action.startswith("↩"):
-                    break
-
-                # Ajouter
-                if action.startswith("➕"):
-                    deja_dans = set(self.program[jour].keys())
-                    catalogue_dispo = {nom: info for nom, info in inv.items() if nom not in deja_dans}
-                    if not catalogue_dispo:
-                        print("⚠️ Tous les exercices du catalogue sont déjà dans ce programme.")
-                        continue
-                    exo = selectionner_exercice_inventaire(f"Quel exercice ajouter à {jour} ?", catalogue_dispo)
-                    if not exo or exo == "↩ Annuler":
-                        continue
-                    default_scheme = inv[exo].get("default_scheme", "3x8-12")
-                    scheme = input(f"Scheme (Entrée = {default_scheme}) → ").strip() or default_scheme
-                    self.program[jour][exo] = scheme
-                    save_program(self.program)
-                    print(f"✅ '{exo}' ajouté à {jour} ({scheme}) !")
-
-                # Supprimer
-                elif action.startswith("🗑️"):
-                    exo = selectionner_exercice_programme(f"Quel exercice supprimer de {jour} ?", self.program[jour])
-                    if not exo or exo == "↩ Annuler":
-                        continue
-                    from menu_select import selectionner as _sel
-                    confirmer = _sel(f"Supprimer '{exo}' de {jour} ?", ["Oui, supprimer", "Non, annuler"])
-                    if confirmer == "Oui, supprimer":
-                        del self.program[jour][exo]
-                        save_program(self.program)
-                        print(f"✅ '{exo}' supprimé de {jour}.")
-                    else:
-                        print("Annulé.")
-
-                # Remplacer
-                elif action.startswith("🔄"):
-                    exo_old = selectionner_exercice_programme("Quel exercice remplacer ?", self.program[jour])
-                    if not exo_old or exo_old == "↩ Annuler":
-                        continue
-                    deja_dans = set(self.program[jour].keys()) - {exo_old}
-                    catalogue_dispo = {nom: info for nom, info in inv.items() if nom not in deja_dans}
-                    exo_new = selectionner_exercice_inventaire(f"Remplacer '{exo_old}' par quel exercice ?", catalogue_dispo)
-                    if not exo_new or exo_new == "↩ Annuler":
-                        continue
-                    ancien_scheme = self.program[jour].pop(exo_old)
-                    nouveau_scheme = inv[exo_new].get("default_scheme", ancien_scheme)
-                    scheme = input(f"Scheme (Entrée = {nouveau_scheme}) → ").strip() or nouveau_scheme
-                    self.program[jour][exo_new] = scheme
-                    save_program(self.program)
-                    print(f"✅ '{exo_old}' → '{exo_new}' ({scheme}) !")
-
-                # Changer scheme
-                elif action.startswith("✏️"):
-                    exo = selectionner_exercice_programme("Pour quel exercice changer le scheme ?", self.program[jour])
-                    if not exo or exo == "↩ Annuler":
-                        continue
-                    actuel = self.program[jour][exo]
-                    new_scheme = input(f"Nouveau scheme (actuel: {actuel}) → ").strip()
-                    if not new_scheme:
-                        print("Rien changé.")
-                        continue
-                    self.program[jour][exo] = new_scheme
-                    save_program(self.program)
-                    print(f"✅ {exo} : {actuel} → {new_scheme}")
-
-    def voir_analyse_deload(self):
-        afficher_rapport_deload(self.weights)
+if __name__ == "__main__":
+    port = find_free_port()
+    url  = f"http://localhost:{port}"
+    print(f"🚀 TrainingOS → {url}")
+    Timer(1.0, lambda: webbrowser.open(url)).start()
+    app.run(debug=True, use_reloader=False, host="0.0.0.0", port=port)

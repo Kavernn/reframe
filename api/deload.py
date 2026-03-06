@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 from sessions import load_sessions
+from db import get_json, set_json
+
 
 BASE_DIR      = Path(__file__).parent
 DATA_FILE     = BASE_DIR / "data" / "weights.json"
@@ -97,18 +99,10 @@ def calculer_poids_deload(weights: dict, exercices: list[str] = None) -> dict:
 # ─────────────────────────────────────────────────────────────
 
 def load_deload_state() -> dict:
-    if not DELOAD_FILE.exists():
-        return {"active": False, "since": None, "reason": None}
-    try:
-        with open(DELOAD_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {"active": False, "since": None, "reason": None}
-
+    return get_json("deload_state", {"active": False})
 
 def save_deload_state(state: dict):
-    with open(DELOAD_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2, ensure_ascii=False)
+    set_json("deload_state", state)
 
 
 def activer_deload(reason: str):

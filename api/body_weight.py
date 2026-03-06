@@ -1,73 +1,30 @@
-from __future__ import annotations
+from db import get_json, set_json
 from datetime import datetime
-from .db import get_json, set_json
-
-KEY = "body_weight"
 
 def load_body_weight() -> list:
-    """
-    Liste d'entrées [{date, poids, note}], la plus récente en premier.
-    """
-    data = get_json(KEY, []) or []
-    return data if isinstance(data, list) else []
-
-def save_body_weight(entries: list):
-    set_json(KEY, entries)
+    return get_json("body_weight", [])
 
 def log_body_weight(poids: float, note: str = ""):
-    entries = load_body_weight()
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    # Si déjà logué aujourd'hui → on écrase
-    entries = [e for e in entries if e["date"] != today]
-    entries.append({
-        "date": today,
-        "poids": round(poids, 1),
-        "note": note
+    data = load_body_weight()
+    data.insert(0, {
+        "date":  datetime.now().strftime("%Y-%m-%d"),
+        "poids": poids,
+        "note":  note
     })
-    # Ordre décroissant par date
-    entries = sorted(entries, key=lambda x: x["date"], reverse=True)
-    save_body_weight(entries)
-    print(f"✅ Poids loggué : {poids} kg le {today}")
+    set_json("body_weight", data)
 
-def get_last_body_weight(n: int = 30) -> list:
-    entries = load_body_weight()
-    return entries[:n]
-
-def get_tendance(entries: list) -> str:
-    """Calcule la tendance sur les 7 derniers jours (en kg)."""
-    if len(entries) < 2:
+def get_tendance(body_weight: list) -> str:
+    if len(body_weight) < 2:
         return "Pas assez de données"
-    recent = entries[:7]
-    if len(recent) < 2:
+    recent = body_weight[:3]
+    older  = body_weight[3:6]
+    if not older:
         return "Pas assez de données"
-    diff = recent[0]["poids"] - recent[-1]["poids"]
-    if abs(diff) < 0.3:
-        return f"Stable ↔️ ({recent[0]['poids']} kg)"
-    elif diff > 0:
-        return f"En hausse ↑ +{diff:.1f} kg sur {len(recent)} jours"
-    else:
-        return f"En baisse ↓ {diff:.1f} kg sur {len(recent)} jours"
+    avg_r = sum(e["poids"] for e in recent) / len(recent)
+    avg_o = sum(e["poids"] for e in older)  / len(older)
+    diff  = avg_r - avg_o
+    if diff > 0.3:  return f"↑ +{diff:.1f} kg"
+    if diff < -0.3: return f"↓ {diff:.1f} kg"
+    return "→ Stable"
 
-def afficher_historique_poids(max_entries: int = 14):
-    entries = load_body_weight()
-    if not entries:
-        print("\nAucun poids loggué pour l'instant.")
-        print("Utilise l'option 'Logger mon poids' pour commencer !")
-        return
-
-    print(f"\n{'═' * 50}")
-    print(f" SUIVI POIDS CORPOREL")
-    print(f"{'═' * 50}")
-    print(f" Tendance : {get_tendance(entries)}\n")
-    print(f" {'Date':<12} {'Poids':<10} Note")
-    print(" " + "─" * 40)
-
-    for entry in entries[:max_entries]:
-        note = entry.get("note", "") or "—"
-        print(f" {entry['date']:<12} {entry['poids']:<10} {note}")
-
-    print(" " + "─" * 40)
-    if len(entries) > max_entries:
-        print(f" ... et {len(entries) - max_entries} entrées plus anciennes")
-    print(f"{'═' * 50}")
+def afficher_historique_poids(): pass

@@ -1,5 +1,7 @@
-from __future__ import annotations
 
+
+from __future__ import annotations
+from db import get_json, set_json
 from datetime import datetime
 from typing import Dict, List
 from .db import get_json, set_json
@@ -44,11 +46,10 @@ SCHEDULE = {
 }
 
 
-def load_program() -> Dict:
-    return get_json("program", DEFAULT_PROGRAM)
+def load_program() -> dict:
+    return get_json("program", {})
 
-
-def save_program(program: Dict) -> None:
+def save_program(program: dict):
     set_json("program", program)
 
 
