@@ -447,21 +447,46 @@ async function uploadPhoto(input) {
   const file = input.files[0];
   if (!file) return;
 
-  const formData = new FormData();
-  formData.append('photo', file);
+  showToast('Compression en cours…');
 
   try {
-    const res    = await fetch('/api/update_profile_photo', { method: 'POST', body: formData });
+    const dataUrl = await resizeImage(file, 400, 0.82);
+    const res = await fetch('/api/update_profile_photo', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ photo_b64: dataUrl })
+    });
     const result = await res.json();
     if (result.success) {
-      document.getElementById('profile-avatar-img').src = result.photo_url + '?t=' + Date.now();
+      document.getElementById('profile-avatar-img').src = dataUrl;
       showToast('Photo mise à jour ! 📷');
     } else {
-      showToast('Erreur: ' + result.error, 'error');
+      showToast('Erreur: ' + (result.error || '?'), 'error');
     }
   } catch (err) {
-    showToast('Erreur upload !', 'error');
+    showToast('Erreur upload : ' + err.message, 'error');
   }
+  input.value = '';
+}
+
+function resizeImage(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; } }
+      else        { if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; } }
+      const canvas = document.createElement('canvas');
+      canvas.width  = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => reject(new Error("Impossible de lire l'image"));
+    img.src = url;
+  });
 }
 
 // Ajoute modal-photo dans la liste des fermetures

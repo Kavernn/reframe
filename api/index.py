@@ -240,6 +240,14 @@ def objectifs():
     return render_template("objectifs.html", goals=goals_data)
 
 
+@app.route("/timer")
+def timer():
+    return render_template("timer.html",
+        now  = datetime.now().strftime("%Y-%m-%d"),
+        week = datetime.now().isocalendar()[1]
+    )
+
+
 @app.route("/stats")
 def stats():
     return render_template("stats.html",
@@ -508,29 +516,25 @@ def api_update_profile():
 
 @app.route("/api/update_profile_photo", methods=["POST"])
 def api_update_profile_photo():
-    if 'photo' not in request.files:
-        return jsonify({"success": False, "error": "Fichier manquant"}), 400
+    # Reçoit du JSON avec photo_b64 déjà compressée/redimensionnée côté client
+    data = request.get_json(silent=True) or {}
+    data_url = data.get("photo_b64", "")
 
-    file = request.files['photo']
-    if not file or file.filename == '':
-        return jsonify({"success": False, "error": "Aucun fichier"}), 400
+    if not data_url or not data_url.startswith("data:image"):
+        return jsonify({"success": False, "error": "Image invalide"}), 400
 
-    # Vérifie la taille (max 1MB pour rester dans les limites Supabase KV)
-    file_bytes = file.read()
-    if len(file_bytes) > 1_000_000:
-        return jsonify({"success": False, "error": "Image trop lourde (max 1MB)"}), 400
-
-    import base64, mimetypes
-    mime = file.mimetype or mimetypes.guess_type(file.filename)[0] or "image/jpeg"
-    b64  = base64.b64encode(file_bytes).decode("utf-8")
-    data_url = f"data:{mime};base64,{b64}"
+    # Vérifie la taille (~600KB max en base64 = ~450KB image)
+    if len(data_url) > 800_000:
+        return jsonify({"success": False, "error": "Image trop lourde après compression"}), 400
 
     profile = load_user_profile()
     profile["photo_b64"] = data_url
-    profile.pop("photo", None)  # supprime l'ancienne clé fichier si présente
-    save_user_profile(profile)
+    profile.pop("photo", None)
+    ok = save_user_profile(profile)
 
-    return jsonify({"success": True, "photo_url": data_url})
+    if ok:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Erreur sauvegarde"}), 500
 
 
 @app.route("/api/set_goal", methods=["POST"])
