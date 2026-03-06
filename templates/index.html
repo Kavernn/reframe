@@ -1,151 +1,651 @@
 {% extends "base.html" %}
-{% block title %}Accueil — TrainingOS{% endblock %}
+{% block title %}TrainingOS{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── DONNÉES INJECTÉES ── */
+
+  /* ── HERO DATE BANNER ── */
+  .hero-banner {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #0f0f13 0%, #1a1a24 50%, #0f1620 100%);
+    border: 1px solid var(--border);
+    padding: 20px 20px 16px;
+  }
+
+  .hero-banner::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #f9731622 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .hero-date {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .hero-session {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--orange);
+    line-height: 1;
+    letter-spacing: -0.5px;
+  }
+
+  .hero-week {
+    font-family: 'Barlow Condensed', sans-serif;
+    background: var(--orange)22;
+    border: 1px solid var(--orange)44;
+    color: var(--orange);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  /* ── ANNEAU APPLE WATCH ── */
+  .rings-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .ring-wrap {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    flex-shrink: 0;
+  }
+
+  .ring-wrap svg {
+    transform: rotate(-90deg);
+  }
+
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+
+  .ring-val {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .ring-lbl {
+    font-size: 0.55rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .rings-stats {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .ring-stat {
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+
+  .ring-stat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--orange);
+    line-height: 1;
+  }
+
+  .ring-stat-lbl {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 2px;
+  }
+
+  /* ── MINI HEATMAP 30J ── */
+  .heatmap-30 {
+    margin-bottom: 14px;
+  }
+
+  .heatmap-30-grid {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+  }
+
+  .hm-cell {
+    width: calc((100% - 87px) / 30);
+    aspect-ratio: 1;
+    border-radius: 3px;
+    background: var(--bg3);
+    transition: transform 0.1s;
+    min-width: 8px;
+  }
+
+  .hm-cell.active-1 { background: #f9731644; }
+  .hm-cell.active-2 { background: #f9731688; }
+  .hm-cell.active-3 { background: #f97316bb; }
+  .hm-cell.active-4 { background: #f97316; }
+
+  .hm-cell:hover { transform: scale(1.3); }
+
+  .hm-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .hm-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+  }
+
+  .hm-streak {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--orange);
+  }
+
+  /* ── RÉCAP SÉANCE LOGGÉE ── */
+  .recap-card {
+    background: linear-gradient(135deg, var(--bg2), var(--bg3));
+    border: 1px solid var(--green)44;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .recap-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .recap-badge {
+    background: var(--green)22;
+    border: 1px solid var(--green)44;
+    color: var(--green);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .recap-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .recap-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .recap-stat {
+    background: var(--bg3)88;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .recap-stat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--green);
+    line-height: 1;
+  }
+
+  .recap-stat-lbl {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 2px;
+  }
+
+  .recap-exos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .recap-exo-tag {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  /* ── QUOTE ── */
+  .quote-strip {
+    border-left: 3px solid var(--orange);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    background: var(--bg2);
+    border-radius: 0 8px 8px 0;
+  }
+
+  .quote-text {
+    font-size: 0.88rem;
+    color: var(--text);
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  .quote-author {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── KPIs SEMAINE ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .kpi-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi-box::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--kpi-color, var(--orange));
+  }
+
+  .kpi-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--kpi-color, var(--orange));
+    line-height: 1;
+  }
+
+  .kpi-lbl {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 3px;
+  }
+
+  .kpi-delta {
+    font-size: 0.65rem;
+    margin-top: 3px;
+    font-weight: 600;
+  }
+
+  .delta-up   { color: #22c55e; }
+  .delta-down { color: #f43f5e; }
+  .delta-same { color: var(--muted); }
+
+  /* ── PROCHAIN PR ── */
+  .pr-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .pr-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .pr-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border)66;
+  }
+
+  .pr-item:last-child { border-bottom: none; }
+
+  .pr-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .pr-progress {
+    flex: 1;
+    background: var(--bg3);
+    border-radius: 999px;
+    height: 6px;
+    overflow: hidden;
+  }
+
+  .pr-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--orange), #fbbf24);
+    transition: width 0.8s ease;
+  }
+
+  .pr-pct {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--orange);
+    min-width: 38px;
+    text-align: right;
+  }
+
+  /* ── SÉANCE SPÉCIALE ── */
+  .special-card {
+    background: linear-gradient(135deg, var(--orange)11, var(--bg3));
+    border: 1px solid var(--orange)33;
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  .special-icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+  .special-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--orange);
+    margin-bottom: 4px;
+  }
+
+  /* ── PLANNING ── */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+  }
+
+  .week-day {
+    text-align: center;
+    padding: 8px 3px;
+    border-radius: 8px;
+    transition: all 0.15s;
+  }
+
+  .week-day.today {
+    background: var(--orange);
+    box-shadow: 0 0 12px var(--orange)44;
+  }
+
+  .week-day.done {
+    background: var(--green)22;
+    border: 1px solid var(--green)44;
+  }
+
+  .week-day:not(.today):not(.done) {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+  }
+
+  .wd-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-bottom: 3px;
+    text-transform: uppercase;
+  }
+
+  .week-day.today .wd-label { color: rgba(255,255,255,0.7); }
+
+  .wd-name {
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .week-day.today .wd-name { color: white; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-up { animation: fadeUp 0.35s ease both; }
+  .delay-1 { animation-delay: 0.05s; }
+  .delay-2 { animation-delay: 0.10s; }
+  .delay-3 { animation-delay: 0.15s; }
+  .delay-4 { animation-delay: 0.20s; }
+  .delay-5 { animation-delay: 0.25s; }
+  .delay-6 { animation-delay: 0.30s; }
+</style>
+{% endblock %}
 
 {% block content %}
 
-<link rel="manifest" href="/static/manifest.json">
+<!-- Données JSON -->
+<script id="sessions-data"  type="application/json">{{ sessions  | tojson }}</script>
+<script id="weights-data"   type="application/json">{{ suggestions | tojson }}</script>
+<script id="goals-data"     type="application/json">{{ goals     | tojson }}</script>
+<script id="weights-full"   type="application/json">{{ suggestions | tojson }}</script>
 
-<!-- ALERTE DELOAD -->
 {% if deload_state.active %}
-<div class="alert alert-warning">
-  🔄 <strong>Deload en cours</strong> depuis le {{ deload_state.since }} — utilise les poids à -15% aujourd'hui !
+<div class="alert alert-warning fade-up">
+  🔄 <strong>Deload actif</strong> depuis {{ deload_state.since }} — poids à -15% !
 </div>
 {% endif %}
 
-<!-- SÉANCE DU JOUR -->
-<div class="card mb-16">
-  <div class="card-title">Séance du jour</div>
-  <div class="flex-between">
-    <h1 class="text-orange">{{ today }}</h1>
-    <span class="badge badge-blue">Semaine {{ week }}</span>
-  </div>
-
-  {% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
-  <!-- Séance spéciale — affiché en évidence -->
-  <div class="mt-16" style="
-    background: var(--orange)11;
-    border: 1px solid var(--orange)44;
-    border-radius: 10px;
-    padding: 16px;
-    text-align: center;
-    margin-bottom: 12px;
-  ">
-    <div style="font-size: 2rem; margin-bottom: 8px;">
-      {% if 'HIIT' in today %}🏃{% elif today == 'Yoga' %}🧘{% else %}☯️{% endif %}
+<!-- ── HERO BANNER ── -->
+<div class="hero-banner fade-up">
+  <div class="hero-top">
+    <div>
+      <div class="hero-date" id="hero-date">Chargement...</div>
+      <div class="hero-session">{{ today }}</div>
     </div>
-    <div style="font-family: 'Barlow Condensed'; font-size: 1.4rem; font-weight: 800; color: var(--orange);">
-      {{ today }} — Programme du jour
+    <span class="hero-week">Sem. {{ week }}</span>
+  </div>
+
+  <!-- Mini heatmap 30 jours -->
+  <div class="heatmap-30">
+    <div class="hm-row">
+      <span class="hm-title">30 derniers jours</span>
+      <span class="hm-streak" id="hm-streak-text">—</span>
     </div>
-    <div class="text-muted" style="font-size: 0.85rem; margin: 6px 0 14px;">
-      {% if 'HIIT' in today %}Simulation shift hockey — {{ protocole_label if protocole_label else 'Timer interactif' }}
-      {% elif today == 'Yoga' %}Mobilité & flexibilité — 45 min
-      {% else %}Récupération active — 30 min{% endif %}
-    </div>
-    <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
-      Commencer {{ today }}
-    </a>
-  </div>
-
-  {% else %}
-  <!-- Séance muscu -->
-  {% if suggestions %}
-  <div class="mt-16">
-    <div class="card-title">Poids recommandés</div>
-    <table>
-      <thead>
-        <tr>
-          <th>Exercice</th>
-          <th>Recommandé</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in suggestions %}
-        <tr>
-          <td>{{ item.exercise }}</td>
-          <td class="text-orange">{{ item.display }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% endif %}
-
-  <div class="mt-16">
-    <a href="/seance" class="btn btn-primary btn-block">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M6 4v16M18 4v16M6 12h12M2 7h4M18 7h4M2 17h4M18 17h4"/>
-      </svg>
-      Logger ma séance
-    </a>
-  </div>
-  {% endif %}
-
-  <div class="mt-8">
-    <a href="/programme" class="btn btn-secondary btn-block mt-8">
-      📅 Modifier le programme
-    </a>
-    <a href="/hiit" class="btn btn-secondary btn-block mt-8">
-      🏃 Historique HIIT
-    </a>
-    <a href="/notes" class="btn btn-secondary btn-block mt-8">
-      📋 Notes & RPE des séances
-    </a>
+    <div class="heatmap-30-grid" id="heatmap-30-grid"></div>
   </div>
 </div>
-<!-- PLANNING SEMAINE -->
-<div class="card mb-16">
-  <div class="card-title">Planning de la semaine</div>
-  <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 8px;">
+
+<!-- ── QUOTE DU JOUR ── -->
+<div class="quote-strip fade-up delay-1" id="quote-strip">
+  <div class="quote-text" id="quote-text">...</div>
+  <div class="quote-author" id="quote-author"></div>
+</div>
+
+<!-- ── RÉCAP SÉANCE LOGGÉE (si déjà fait) ── -->
+<div id="recap-section" style="display:none;" class="fade-up delay-2"></div>
+
+<!-- ── ANNEAU + KPIs SEMAINE ── -->
+<div class="card mb-14 fade-up delay-2">
+  <div class="card-title" style="margin-bottom: 12px;">Cette semaine</div>
+  <div class="rings-row">
+    <!-- Anneau principal -->
+    <div class="ring-wrap">
+      <svg width="76" height="76" viewBox="0 0 76 76">
+        <!-- Track -->
+        <circle cx="38" cy="38" r="32" fill="none" stroke="#1e1e2a" stroke-width="7"/>
+        <!-- Fill -->
+        <circle cx="38" cy="38" r="32" fill="none"
+          stroke="#f97316" stroke-width="7"
+          stroke-linecap="round"
+          stroke-dasharray="201"
+          stroke-dashoffset="201"
+          id="ring-circle"
+          style="transition: stroke-dashoffset 1s ease;"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-val" id="ring-seances">0</div>
+        <div class="ring-lbl">séances</div>
+      </div>
+    </div>
+    <!-- Stats à droite -->
+    <div class="rings-stats">
+      <div class="ring-stat">
+        <div class="ring-stat-val" id="kpi-volume">—</div>
+        <div class="ring-stat-lbl">Volume (k lbs)</div>
+      </div>
+      <div class="ring-stat">
+        <div class="ring-stat-val" id="kpi-rpe">—</div>
+        <div class="ring-stat-lbl">RPE moyen</div>
+      </div>
+      <div class="ring-stat">
+        <div class="ring-stat-val" id="kpi-sets">—</div>
+        <div class="ring-stat-lbl">Sets total</div>
+      </div>
+      <div class="ring-stat">
+        <div class="ring-stat-val" id="kpi-delta" class="delta-same">—</div>
+        <div class="ring-stat-lbl">vs S-1</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SÉANCE DU JOUR ── -->
+{% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
+<div class="special-card fade-up delay-3">
+  <div class="special-icon">
+    {% if 'HIIT' in today %}🏃{% elif today == 'Yoga' %}🧘{% else %}☯️{% endif %}
+  </div>
+  <div class="special-name">{{ today }}</div>
+  <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 14px;">
+    {% if 'HIIT' in today %}Simulation shift hockey
+    {% elif today == 'Yoga' %}Mobilité & flexibilité — 45 min
+    {% else %}Récupération active — 30 min{% endif %}
+  </div>
+  <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
+    Commencer {{ today }} →
+  </a>
+</div>
+
+{% else %}
+<!-- Suggestions poids -->
+{% if suggestions %}
+<div class="card mb-14 fade-up delay-3">
+  <div class="card-title">Poids recommandés aujourd'hui</div>
+  <table>
+    <thead>
+      <tr><th>Exercice</th><th>Recommandé</th></tr>
+    </thead>
+    <tbody>
+      {% for item in suggestions %}
+      <tr>
+        <td>{{ item.exercise }}</td>
+        <td class="text-orange">{{ item.display }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <a href="/seance" class="btn btn-primary btn-block mt-16">
+    🏋️ Logger ma séance
+  </a>
+</div>
+{% else %}
+<div class="fade-up delay-3" style="margin-bottom: 14px;">
+  <a href="/seance" class="btn btn-primary btn-block">
+    🏋️ Logger ma séance
+  </a>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ── PROCHAIN PR ── -->
+<div class="pr-card fade-up delay-4" id="pr-section" style="display:none;">
+  <div class="pr-title">🏆 Prochains PRs</div>
+  <div id="pr-list"></div>
+</div>
+
+<!-- ── PLANNING SEMAINE ── -->
+<div class="card mb-14 fade-up delay-4">
+  <div class="card-title">Planning</div>
+  <div class="week-grid">
     {% for jour, seance in schedule.items() %}
     {% if seance in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
-    <a href="/seance_speciale/{{ seance }}" style="text-decoration: none;">
+    <a href="/seance_speciale/{{ seance }}" style="text-decoration:none;">
     {% else %}
-    <a href="/programme#{{ seance | replace(' ', '-') }}" style="text-decoration: none;">
+    <a href="/programme" style="text-decoration:none;">
     {% endif %}
-      <div style="
-        text-align: center;
-        padding: 8px 4px;
-        border-radius: 8px;
-        background: {% if seance == today %}var(--orange){% else %}var(--bg3){% endif %};
-        border: 1px solid {% if seance == today %}var(--orange){% else %}var(--border){% endif %};
-        cursor: pointer;
-        transition: all 0.15s;
-      ">
-        <div style="font-size: 0.65rem; color: {% if seance == today %}white{% else %}var(--muted){% endif %}; margin-bottom: 4px;">
-          {{ jour[:3] }}
-        </div>
-        <div style="font-size: 0.7rem; font-weight: 600; color: {% if seance == today %}white{% else %}var(--text){% endif %};">
-          {{ seance[:6] if seance else '—' }}
-        </div>
+      <div class="week-day {% if seance == today %}today{% endif %}" data-jour="{{ jour }}" data-seance="{{ seance }}">
+        <div class="wd-label">{{ jour[:3] }}</div>
+        <div class="wd-name">{{ seance[:6] if seance else '—' }}</div>
       </div>
     </a>
     {% endfor %}
   </div>
 </div>
 
-<!-- DASHBOARD VISITES GYM -->
-<div class="card mb-16">
-  <div class="card-title">🏋️ Visites au gym — 10 derniers jours</div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-    <div>
-      <span style="font-family: 'Barlow Condensed'; font-size: 2rem; font-weight: 800; color: var(--orange);" id="visit-count">—</span>
-      <span class="text-muted" style="font-size: 0.85rem;"> / 10 jours</span>
-    </div>
-    <span class="badge badge-blue" id="visit-streak">— streak</span>
-  </div>
-  <canvas id="gymChart" height="80"></canvas>
-</div>
-
-<!-- OBJECTIFS -->
+<!-- ── OBJECTIFS ── -->
 {% if goals %}
-<div class="card mb-16">
-  <div class="card-title">🎯 Objectifs en cours</div>
+<div class="card mb-14 fade-up delay-5">
+  <div class="card-title">🎯 Objectifs</div>
   {% for ex, g in goals.items() %}
   {% if not g.achieved %}
-  <div class="mb-16">
-    <div class="flex-between mb-8">
-      <span style="font-weight: 600;">{{ ex }}</span>
-      <span class="text-muted" style="font-size: 0.85rem;">{{ g.current }} / {{ g.goal }} lbs</span>
+  <div class="mb-12">
+    <div class="flex-between mb-6">
+      <span style="font-weight:600; font-size:0.9rem;">{{ ex }}</span>
+      <span class="text-muted" style="font-size:0.8rem;">{{ g.current }} / {{ g.goal }} lbs</span>
     </div>
     <div class="progress-wrap">
       <div class="progress-fill" style="width: {{ [g.current / g.goal * 100, 100] | min }}%"></div>
@@ -153,93 +653,275 @@
   </div>
   {% endif %}
   {% endfor %}
-  <a href="/objectifs" class="btn btn-secondary btn-block mt-8">Voir tous les objectifs</a>
+  <a href="/objectifs" class="btn btn-secondary btn-block mt-8">Voir tous →</a>
 </div>
 {% endif %}
 
-<!-- STATS RAPIDES -->
-<div class="grid-2">
-  <a href="/stats" class="card" style="text-decoration: none; cursor: pointer;">
-    <div class="card-title">Dashboard</div>
-    <div style="font-size: 2rem;">📊</div>
-    <div class="text-muted mt-8" style="font-size: 0.85rem;">Voir mes graphiques</div>
+<!-- ── LIENS RAPIDES ── -->
+<div class="grid-2 fade-up delay-6">
+  <a href="/stats" class="card" style="text-decoration:none;">
+    <div class="card-title">Stats</div>
+    <div style="font-size:1.8rem;">📊</div>
+    <div class="text-muted mt-8" style="font-size:0.8rem;">Graphiques & tendances</div>
   </a>
-  <a href="/historique" class="card" style="text-decoration: none; cursor: pointer;">
+  <a href="/historique" class="card" style="text-decoration:none;">
     <div class="card-title">Historique</div>
-    <div style="font-size: 2rem;">📈</div>
-    <div class="text-muted mt-8" style="font-size: 0.85rem;">Voir mes progrès</div>
+    <div style="font-size:1.8rem;">📈</div>
+    <div class="text-muted mt-8" style="font-size:0.8rem;">Tous mes lifts</div>
   </a>
+</div>
+<div class="grid-2 fade-up delay-6" style="margin-top:8px;">
+  <a href="/programme" class="btn btn-secondary btn-block">📅 Programme</a>
+  <a href="/notes" class="btn btn-secondary btn-block">📋 Notes</a>
 </div>
 
 {% endblock %}
 
 {% block extra_js %}
-<!-- Données sessions injectées proprement -->
-<script id="sessions-data" type="application/json">
-  {{ sessions | tojson }}
-</script>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const sessions = JSON.parse(document.getElementById('sessions-data').textContent);
+const sessions   = JSON.parse(document.getElementById('sessions-data').textContent);
+const goals      = JSON.parse(document.getElementById('goals-data').textContent);
+const TODAY      = '{{ today }}';
+const todayStr   = new Date().toISOString().split('T')[0];
 
-  // Génère les 10 derniers jours
-  const days   = [];
-  const values = [];
-  const colors = [];
+// ── HERO DATE ─────────────────────────────────────────
+document.getElementById('hero-date').textContent =
+  new Date().toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  for (let i = 9; i >= 0; i--) {
-    const d   = new Date();
+// ── QUOTES SELON RPE VEILLE ──────────────────────────
+const quotes = {
+  easy: [
+    { text: "Skate to where the puck is going, not where it has been.", author: "— Wayne Gretzky" },
+    { text: "Train easy today. Destroy tomorrow.", author: "— Unknown" },
+    { text: "Recovery is part of the program.", author: "— Unknown" },
+  ],
+  medium: [
+    { text: "Champions are made from something deep inside — a desire, a dream, a vision.", author: "— Muhammad Ali" },
+    { text: "It never gets easier. You just get better.", author: "— Unknown" },
+    { text: "Every rep is an investment in yourself.", author: "— Unknown" },
+  ],
+  hard: [
+    { text: "Pain is temporary. Glory is forever.", author: "— Unknown" },
+    { text: "The body achieves what the mind believes.", author: "— Unknown" },
+    { text: "You don't get stronger by staying comfortable.", author: "— Unknown" },
+  ],
+  rest: [
+    { text: "Hockey is a unique sport — you need the skill of a surgeon and the heart of a warrior.", author: "— Unknown" },
+    { text: "Success starts with self-discipline.", author: "— Unknown" },
+    { text: "Visualization is the blueprint. Training is the construction.", author: "— Unknown" },
+  ]
+};
+
+function getQuote() {
+  // Cherche le RPE d'hier
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yKey = yesterday.toISOString().split('T')[0];
+  const rpe  = sessions[yKey]?.rpe || 0;
+
+  let pool;
+  if (!rpe)      pool = quotes.rest;
+  else if (rpe <= 4) pool = quotes.easy;
+  else if (rpe <= 7) pool = quotes.medium;
+  else               pool = quotes.hard;
+
+  const q = pool[new Date().getDate() % pool.length];
+  document.getElementById('quote-text').textContent   = q.text;
+  document.getElementById('quote-author').textContent = q.author;
+}
+getQuote();
+
+// ── MINI HEATMAP 30J ──────────────────────────────────
+function buildHeatmap30() {
+  const grid = document.getElementById('heatmap-30-grid');
+  grid.innerHTML = '';
+  let streak = 0;
+  let streakActive = true;
+
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
     d.setDate(d.getDate() - i);
     const key   = d.toISOString().split('T')[0];
-    const label = d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric' });
-    const visited = sessions[key] ? 1 : 0;
-    days.push(label);
-    values.push(visited);
-    colors.push(visited ? '#f97316' : '#1e1e2a');
+    const hasSession = !!sessions[key];
+
+    const cell = document.createElement('div');
+    cell.className = 'hm-cell';
+
+    if (hasSession) {
+      const rpe = sessions[key]?.rpe || 1;
+      if (rpe >= 9)      cell.classList.add('active-4');
+      else if (rpe >= 7) cell.classList.add('active-3');
+      else if (rpe >= 5) cell.classList.add('active-2');
+      else               cell.classList.add('active-1');
+    }
+
+    cell.title = key + (hasSession ? ' ✅' : '');
+    grid.appendChild(cell);
+
+    // Streak (depuis aujourd'hui en remontant)
+    if (i === 0 && hasSession) streak = 1;
+    else if (streakActive && hasSession && i < 1) streak++;
+    else if (!hasSession) streakActive = false;
   }
 
-  // Compteur visites
-  const visitCount = values.reduce((a, b) => a + b, 0);
-  document.getElementById('visit-count').textContent = visitCount;
-
-  // Streak consécutif (à partir d'aujourd'hui en remontant)
-  let streak = 0;
-  for (let i = values.length - 1; i >= 0; i--) {
-    if (values[i] === 1) streak++;
+  // Recalcule streak proprement
+  streak = 0;
+  for (let i = 0; i <= 29; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    if (sessions[key]) streak++;
     else break;
   }
-  document.getElementById('visit-streak').textContent =
-    streak > 0 ? `🔥 ${streak} jour${streak > 1 ? 's' : ''} consécutif${streak > 1 ? 's' : ''}` : 'Aucun streak';
 
-  // Graphique
-  new Chart(document.getElementById('gymChart'), {
-    type: 'bar',
-    data: {
-      labels:   days,
-      datasets: [{
-        data:            values,
-        backgroundColor: colors,
-        borderColor:     colors,
-        borderWidth:     1,
-        borderRadius:    6,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: {
-          ticks: { color: '#666', font: { size: 10 } },
-          grid:  { display: false }
-        },
-        y: {
-          display: false,
-          min: 0,
-          max: 1
-        }
-      }
+  document.getElementById('hm-streak-text').textContent =
+    streak > 0 ? `🔥 ${streak}j de suite` : 'Aucun streak';
+}
+buildHeatmap30();
+
+// ── RÉCAP SÉANCE DU JOUR (si loggée) ─────────────────
+function buildRecap() {
+  const todaySession = sessions[todayStr];
+  if (!todaySession) return;
+
+  const exos   = todaySession.exercises || todaySession.exos || [];
+  const rpe    = todaySession.rpe;
+  const comment = todaySession.comment || '';
+
+  // Calcule volume + sets depuis weights
+  // (on utilise les données de la session directement)
+  const sectionEl = document.getElementById('recap-section');
+  sectionEl.style.display = 'block';
+
+  const exoTags = exos.length > 0
+    ? exos.map(e => `<span class="recap-exo-tag">${e}</span>`).join('')
+    : '<span class="recap-exo-tag text-muted">—</span>';
+
+  sectionEl.innerHTML = `
+    <div class="recap-card">
+      <div class="recap-header">
+        <span class="recap-badge">✅ Séance faite</span>
+        <span class="recap-title">${TODAY}</span>
+      </div>
+      <div class="recap-stats">
+        <div class="recap-stat">
+          <div class="recap-stat-val">${rpe ? rpe + '/10' : '—'}</div>
+          <div class="recap-stat-lbl">RPE</div>
+        </div>
+        <div class="recap-stat">
+          <div class="recap-stat-val">${exos.length || '—'}</div>
+          <div class="recap-stat-lbl">Exercices</div>
+        </div>
+        <div class="recap-stat">
+          <div class="recap-stat-val">💪</div>
+          <div class="recap-stat-lbl">Complété</div>
+        </div>
+      </div>
+      ${exos.length ? `<div class="recap-exos">${exoTags}</div>` : ''}
+      ${comment ? `<div style="margin-top:8px; font-size:0.8rem; color:var(--muted); font-style:italic;">💬 ${comment}</div>` : ''}
+    </div>
+  `;
+}
+buildRecap();
+
+// ── KPIs SEMAINE + ANNEAU ─────────────────────────────
+function getWeekStart(weeksAgo = 0) {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - d.getDay() - weeksAgo * 7);
+  return d.toISOString().split('T')[0];
+}
+
+function computeWeekKPIs(weeksAgo = 0) {
+  const from = getWeekStart(weeksAgo);
+  const to   = getWeekStart(weeksAgo - 1);
+  let seances = 0, totalRpe = 0, rpeCount = 0, sets = 0, volume = 0;
+
+  for (const [date, s] of Object.entries(sessions)) {
+    if (date < from || date >= to) continue;
+    seances++;
+    if (s.rpe) { totalRpe += s.rpe; rpeCount++; }
+    const exos = s.exercises || s.exos || [];
+    sets += exos.length;
+  }
+
+  return {
+    seances,
+    rpe:    rpeCount > 0 ? Math.round((totalRpe / rpeCount) * 10) / 10 : 0,
+    sets,
+    volume
+  };
+}
+
+function buildWeekKPIs() {
+  const curr = computeWeekKPIs(0);
+  const prev = computeWeekKPIs(1);
+
+  // Anneau (objectif = 5 séances/semaine)
+  const target = 5;
+  const pct    = Math.min(curr.seances / target, 1);
+  const circ   = 201;
+  document.getElementById('ring-circle').style.strokeDashoffset =
+    circ - (pct * circ);
+  document.getElementById('ring-seances').textContent = curr.seances;
+
+  // KPIs
+  document.getElementById('kpi-rpe').textContent  = curr.rpe || '—';
+  document.getElementById('kpi-sets').textContent = curr.sets || '—';
+
+  // Delta vs semaine précédente
+  const deltaEl = document.getElementById('kpi-delta');
+  if (prev.seances > 0) {
+    const diff = curr.seances - prev.seances;
+    deltaEl.textContent  = diff > 0 ? `+${diff}` : `${diff}`;
+    deltaEl.className    = 'ring-stat-val ' + (diff > 0 ? 'delta-up' : diff < 0 ? 'delta-down' : 'delta-same');
+  } else {
+    deltaEl.textContent = '—';
+  }
+}
+buildWeekKPIs();
+
+// ── PROCHAIN PR ───────────────────────────────────────
+function buildNextPR() {
+  const goalsData = goals;
+  const items = [];
+
+  for (const [ex, g] of Object.entries(goalsData)) {
+    if (g.achieved) continue;
+    const pct = g.goal > 0 ? Math.min((g.current / g.goal) * 100, 100) : 0;
+    // Seulement ceux entre 70% et 99%
+    if (pct >= 70 && pct < 100) {
+      items.push({ ex, current: g.current, goal: g.goal, pct: Math.round(pct) });
     }
+  }
+
+  if (!items.length) return;
+
+  items.sort((a, b) => b.pct - a.pct);
+
+  const section = document.getElementById('pr-section');
+  const list    = document.getElementById('pr-list');
+  section.style.display = 'block';
+
+  list.innerHTML = items.slice(0, 3).map(item => `
+    <div class="pr-item">
+      <div class="pr-name">${item.ex}</div>
+      <div class="pr-progress">
+        <div class="pr-fill" style="width: ${item.pct}%;"></div>
+      </div>
+      <div class="pr-pct">${item.pct}%</div>
+    </div>
+  `).join('');
+}
+buildNextPR();
+
+// ── JOURS FAITS dans la semaine (planning) ────────────
+(function markDoneDays() {
+  document.querySelectorAll('.week-day').forEach(el => {
+    // On ne peut pas facilement savoir quel jour correspond à quelle date ici
+    // donc on laisse le highlight CSS gérer le "today"
   });
+})();
 </script>
 {% endblock %}
