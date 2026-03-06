@@ -459,6 +459,47 @@
 
   .week-day.today .wd-name { color: white; }
 
+  /* ── NAVIGATION RAPIDE ── */
+  .quick-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .qnav-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 6px 10px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .qnav-item:hover {
+    border-color: var(--orange);
+    color: var(--orange);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(249,115,22,0.15);
+  }
+
+  .qnav-icon { font-size: 1.4rem; line-height: 1; }
+
+  .qnav-lbl {
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif;
+    line-height: 1.2;
+  }
+
   /* ── ANIMATIONS ── */
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(10px); }
@@ -478,10 +519,9 @@
 {% block content %}
 
 <!-- Données JSON -->
-<script id="sessions-data"  type="application/json">{{ sessions  | tojson }}</script>
-<script id="weights-data"   type="application/json">{{ suggestions | tojson }}</script>
-<script id="goals-data"     type="application/json">{{ goals     | tojson }}</script>
-<script id="weights-full"   type="application/json">{{ suggestions | tojson }}</script>
+<script id="sessions-data" type="application/json">{{ sessions   | tojson }}</script>
+<script id="weights-data"  type="application/json">{{ suggestions | tojson }}</script>
+<script id="goals-data"    type="application/json">{{ goals      | tojson }}</script>
 
 {% if deload_state.active %}
 <div class="alert alert-warning fade-up">
@@ -544,8 +584,8 @@
     <!-- Stats à droite -->
     <div class="rings-stats">
       <div class="ring-stat">
-        <div class="ring-stat-val" id="kpi-volume">—</div>
-        <div class="ring-stat-lbl">Volume (k lbs)</div>
+        <div class="ring-stat-val" id="kpi-streak">—</div>
+        <div class="ring-stat-lbl">Streak</div>
       </div>
       <div class="ring-stat">
         <div class="ring-stat-val" id="kpi-rpe">—</div>
@@ -556,7 +596,7 @@
         <div class="ring-stat-lbl">Sets total</div>
       </div>
       <div class="ring-stat">
-        <div class="ring-stat-val" id="kpi-delta" class="delta-same">—</div>
+        <div class="ring-stat-val" id="kpi-delta">—</div>
         <div class="ring-stat-lbl">vs S-1</div>
       </div>
     </div>
@@ -657,44 +697,50 @@
 </div>
 {% endif %}
 
-<!-- ── LIENS RAPIDES ── -->
-<div class="grid-2 fade-up delay-6">
-  <a href="/stats" class="card" style="text-decoration:none;">
-    <div class="card-title">Stats</div>
-    <div style="font-size:1.8rem;">📊</div>
-    <div class="text-muted mt-8" style="font-size:0.8rem;">Graphiques & tendances</div>
+<!-- ── NAVIGATION RAPIDE ── -->
+<div class="quick-nav fade-up delay-6">
+  <a href="/stats" class="qnav-item">
+    <span class="qnav-icon">📊</span>
+    <span class="qnav-lbl">Stats</span>
   </a>
-  <a href="/historique" class="card" style="text-decoration:none;">
-    <div class="card-title">Historique</div>
-    <div style="font-size:1.8rem;">📈</div>
-    <div class="text-muted mt-8" style="font-size:0.8rem;">Tous mes lifts</div>
+  <a href="/historique" class="qnav-item">
+    <span class="qnav-icon">📈</span>
+    <span class="qnav-lbl">Historique</span>
   </a>
-</div>
-<div class="grid-2 fade-up delay-6" style="margin-top:8px;">
-  <a href="/programme" class="btn btn-secondary btn-block">📅 Programme</a>
-  <a href="/notes" class="btn btn-secondary btn-block">📋 Notes</a>
-</div>
-<div class="grid-2 fade-up delay-6" style="margin-top:8px;">
-  <a href="/historique" class="btn btn-secondary btn-block">📈 Historique</a>
-  <a href="/timer" class="btn btn-primary btn-block">⏱ Timer</a>
-</div>
-<div class="grid-2 fade-up delay-6" style="margin-top:8px;">
-  <a href="/xp" class="btn btn-secondary btn-block">🏆 XP & Badges</a>
-  <a href="/intelligence" class="btn btn-secondary btn-block">🧠 Intelligence</a>
-</div>
-<div class="grid-2 fade-up delay-6" style="margin-top:8px;">
-  <a href="/planificateur" class="btn btn-secondary btn-block">📅 Planificateur</a>
-  <a href="/bodycomp" class="btn btn-secondary btn-block">⚖️ Body Comp</a>
+  <a href="/programme" class="qnav-item">
+    <span class="qnav-icon">📅</span>
+    <span class="qnav-lbl">Programme</span>
+  </a>
+  <a href="/notes" class="qnav-item">
+    <span class="qnav-icon">📋</span>
+    <span class="qnav-lbl">Notes</span>
+  </a>
+  <a href="/xp" class="qnav-item">
+    <span class="qnav-icon">🏆</span>
+    <span class="qnav-lbl">XP</span>
+  </a>
+  <a href="/intelligence" class="qnav-item">
+    <span class="qnav-icon">🧠</span>
+    <span class="qnav-lbl">IA Coach</span>
+  </a>
+  <a href="/planificateur" class="qnav-item">
+    <span class="qnav-icon">🗓️</span>
+    <span class="qnav-lbl">Planner</span>
+  </a>
+  <a href="/bodycomp" class="qnav-item">
+    <span class="qnav-icon">⚖️</span>
+    <span class="qnav-lbl">Body Comp</span>
+  </a>
 </div>
 
 <!-- ── INSIGHT DU JOUR ── -->
-<div class="card fade-up delay-6" id="insight-card" style="margin-top:8px;border-left:3px solid var(--orange);display:none;">
+<div class="card fade-up delay-6" id="insight-card" style="margin-top:14px;border-left:3px solid var(--orange);display:none;">
   <div class="card-title" style="margin-bottom:6px;">💡 Insight du jour</div>
   <div id="insight-text" style="font-size:0.88rem;color:var(--text);line-height:1.5;"></div>
 </div>
 
 <!-- ── DERNIÈRE SÉANCE ── -->
-<div class="card fade-up delay-6" id="last-session-card" style="margin-top:8px;display:none;">
+<div class="card fade-up delay-6" id="last-session-card" style="margin-top:14px;display:none;">
   <div class="flex-between mb-8">
     <div class="card-title" style="margin:0;">🕐 Dernière séance</div>
     <span id="last-session-date" style="font-size:0.75rem;color:var(--muted);"></span>
@@ -706,7 +752,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const sessions   = JSON.parse(document.getElementById('sessions-data').textContent);
 const goals      = JSON.parse(document.getElementById('goals-data').textContent);
@@ -765,7 +810,6 @@ function buildHeatmap30() {
   const grid = document.getElementById('heatmap-30-grid');
   grid.innerHTML = '';
   let streak = 0;
-  let streakActive = true;
 
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
@@ -786,14 +830,8 @@ function buildHeatmap30() {
 
     cell.title = key + (hasSession ? ' ✅' : '');
     grid.appendChild(cell);
-
-    // Streak (depuis aujourd'hui en remontant)
-    if (i === 0 && hasSession) streak = 1;
-    else if (streakActive && hasSession && i < 1) streak++;
-    else if (!hasSession) streakActive = false;
   }
 
-  // Recalcule streak proprement
   streak = 0;
   for (let i = 0; i <= 29; i++) {
     const d = new Date();
@@ -803,8 +841,11 @@ function buildHeatmap30() {
     else break;
   }
 
-  document.getElementById('hm-streak-text').textContent =
-    streak > 0 ? `🔥 ${streak}j de suite` : 'Aucun streak';
+  const streakLabel = streak > 0 ? `🔥 ${streak}j de suite` : 'Aucun streak';
+  document.getElementById('hm-streak-text').textContent = streakLabel;
+
+  const streakEl = document.getElementById('kpi-streak');
+  if (streakEl) streakEl.textContent = streak > 0 ? `${streak}🔥` : '0';
 }
 buildHeatmap30();
 
@@ -894,7 +935,6 @@ function buildWeekKPIs() {
     circ - (pct * circ);
   document.getElementById('ring-seances').textContent = curr.seances;
 
-  // KPIs
   document.getElementById('kpi-rpe').textContent  = curr.rpe || '—';
   document.getElementById('kpi-sets').textContent = curr.sets || '—';
 
@@ -944,12 +984,5 @@ function buildNextPR() {
 }
 buildNextPR();
 
-// ── JOURS FAITS dans la semaine (planning) ────────────
-(function markDoneDays() {
-  document.querySelectorAll('.week-day').forEach(el => {
-    // On ne peut pas facilement savoir quel jour correspond à quelle date ici
-    // donc on laisse le highlight CSS gérer le "today"
-  });
-})();
 </script>
 {% endblock %}

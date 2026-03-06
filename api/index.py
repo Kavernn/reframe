@@ -426,19 +426,8 @@ def api_delete_hiit():
     return jsonify({"error": "Index introuvable"}), 400
 
 
-import os
-import requests
-from flask import request, jsonify
-
-# Assure-toi que cette variable est bien configurée dans ton Vercel
-RAPID_API_KEY = os.getenv("X_RAPIDAPI_KEY")
-
-
 @app.route("/api/save_exercise", methods=["POST"])
 def api_save_exercise():
-    from inventory import save_inventory, load_inventory
-    import os
-    import requests
     data = request.json
     original_name = data.get("original_name", "")
     name = data.get("name", "").strip()
@@ -626,7 +615,6 @@ def api_delete_body_weight():
         new_entries = [e for e in entries if not (e.get("date") == date and float(e.get("poids", 0)) == poids)]
         if len(new_entries) == len(entries):
             return jsonify({"success": False, "error": "Entrée introuvable"}), 404
-        from db import set_json
         set_json("body_weight", new_entries)
         return jsonify({"success": True})
     except Exception as e:
