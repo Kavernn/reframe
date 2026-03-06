@@ -244,6 +244,7 @@
 </div>
 
 <!-- MUSCU -->
+<!-- ── MUSCU ── -->
 <div class="section-label">🏋️ Entraînement musculaire</div>
 
 <div class="chart-card">
@@ -262,9 +263,75 @@
   </div>
 </div>
 
+<!-- NOUVEAU : Ratio Push/Pull/Legs -->
 <div class="chart-card">
-  <h3>🎯 RPE dans le temps</h3>
-  <canvas id="rpeSeances" height="120"></canvas>
+  <h3>⚖️ Ratio Push / Pull / Legs / Core par semaine</h3>
+  <canvas id="pushPullLegs" height="140"></canvas>
+</div>
+
+<!-- NOUVEAU : Top 5 volume cumulé -->
+<div class="chart-card">
+  <h3>🏆 Top 5 exercices — volume cumulé total</h3>
+  <canvas id="top5Volume" height="140"></canvas>
+</div>
+
+<!-- NOUVEAU : Progression 1RM -->
+<div class="chart-card">
+  <h3>📈 Progression 1RM estimé — top exercices</h3>
+  <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;" id="orm-filters"></div>
+  <canvas id="ormProgression" height="140"></canvas>
+</div>
+
+<!-- NOUVEAU : Intensité relative -->
+<div class="chart-card">
+  <h3>🎯 Intensité relative moyenne (%1RM)</h3>
+  <canvas id="intensiteRelative" height="120"></canvas>
+</div>
+
+<!-- NOUVEAU : Scatter RPE vs Volume -->
+<div class="chart-card">
+  <h3>🔬 Corrélation RPE vs Volume par séance</h3>
+  <canvas id="rpeVsVolume" height="200"></canvas>
+</div>
+
+<!-- ANALYSE MUSCULAIRE -->
+<div class="section-label">💪 Analyse musculaire</div>
+
+<div class="chart-card">
+  <h3>Volume par groupe musculaire</h3>
+  <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+    <button class="muscle-filter active" onclick="setMusclePeriod('week', this)">Cette semaine</button>
+    <button class="muscle-filter" onclick="setMusclePeriod('month', this)">Ce mois</button>
+    <button class="muscle-filter" onclick="setMusclePeriod('all', this)">Tout</button>
+  </div>
+  <div class="grid-2" style="align-items: center;">
+    <canvas id="muscleDonut" height="220"></canvas>
+    <canvas id="muscleBar"   height="220"></canvas>
+  </div>
+</div>
+
+<div class="chart-card">
+  <h3>Évolution volume par groupe — 4 semaines</h3>
+  <canvas id="muscleEvol" height="120"></canvas>
+</div>
+
+<!-- COMPARAISON SEMAINE VS SEMAINE -->
+<div class="section-label">📊 Semaine vs semaine</div>
+
+<div class="chart-card">
+  <h3>Cette semaine vs :</h3>
+  <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+    <button class="muscle-filter active" onclick="setCompWeek(1, this)">S-1</button>
+    <button class="muscle-filter" onclick="setCompWeek(2, this)">S-2</button>
+    <button class="muscle-filter" onclick="setCompWeek(4, this)">S-4</button>
+  </div>
+  <div id="comp-kpis" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;"></div>
+  <canvas id="compRadar" height="260"></canvas>
+</div>
+
+<div class="chart-card">
+  <h3>Volume par exercice — comparaison</h3>
+  <canvas id="compBar" height="160"></canvas>
 </div>
 
 <!-- HIIT -->
@@ -282,57 +349,10 @@
 </div>
 
 <div class="chart-card">
-  <h3>🏃 Vitesses sprint max vs croisière</h3>
+  <h3>🏃 Progression vitesses — sprint max vs croisière</h3>
   <canvas id="hiitSpeeds" height="120"></canvas>
 </div>
 
-<!-- ANALYSE MUSCULAIRE -->
-<div class="section-label">💪 Analyse musculaire</div>
-
-<div class="chart-card">
-  <h3>Volume par groupe musculaire — semaine en cours</h3>
-
-  <!-- Sélecteur période -->
-  <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-    <button class="muscle-filter active" onclick="setMusclePeriod('week', this)">Cette semaine</button>
-    <button class="muscle-filter" onclick="setMusclePeriod('month', this)">Ce mois</button>
-    <button class="muscle-filter" onclick="setMusclePeriod('all', this)">Tout</button>
-  </div>
-
-  <div class="grid-2" style="align-items: center;">
-    <canvas id="muscleDonut" height="220"></canvas>
-    <canvas id="muscleBar"   height="220"></canvas>
-  </div>
-</div>
-
-<div class="chart-card">
-  <h3>Évolution volume par groupe — 4 dernières semaines</h3>
-  <canvas id="muscleEvol" height="120"></canvas>
-</div>
-<!-- COMPARAISON SEMAINE VS SEMAINE -->
-<div class="section-label">📊 Comparaison semaine vs semaine</div>
-
-<div class="chart-card">
-  <h3>Cette semaine vs semaine précédente</h3>
-
-  <!-- Sélecteur semaine de comparaison -->
-  <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
-    <button class="muscle-filter active" onclick="setCompWeek(1, this)">S-1</button>
-    <button class="muscle-filter" onclick="setCompWeek(2, this)">S-2</button>
-    <button class="muscle-filter" onclick="setCompWeek(4, this)">S-4</button>
-  </div>
-
-  <!-- KPI cards comparaison -->
-  <div id="comp-kpis" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;"></div>
-
-  <!-- Graphique radar -->
-  <canvas id="compRadar" height="260"></canvas>
-</div>
-
-<div class="chart-card">
-  <h3>Volume par exercice — cette semaine vs avant</h3>
-  <canvas id="compBar" height="160"></canvas>
-</div>
 <!-- POIDS CORPOREL -->
 <div class="section-label">⚖️ Poids corporel</div>
 
@@ -351,6 +371,20 @@
   const sessions   = JSON.parse(document.getElementById('sessions-data').textContent);
   const hiitLog    = JSON.parse(document.getElementById('hiitlog-data').textContent);
   const bodyWeight = JSON.parse(document.getElementById('bodyweight-data').textContent);
+  const inventory  = JSON.parse(document.getElementById('inventory-data')?.textContent || '{}');
+
+  const orange = '#f97316';
+  const blue   = '#3b82f6';
+  const green  = '#22c55e';
+  const purple = '#a855f7';
+  const rose   = '#f43f5e';
+
+  function weekKey(dateStr) {
+    const d = new Date(dateStr);
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    const wk = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    return `${d.getFullYear()}-S${String(wk).padStart(2,'0')}`;
+  }
 
   const orange = '#f97316';
   const blue   = '#3b82f6';
@@ -626,12 +660,247 @@
     options: defaults
   });
 
-  const rpe = computeRpeSeances();
-  new Chart(document.getElementById('rpeSeances'), {
-    type: 'line',
-    data: { labels: rpe.labels, datasets: [{ data: rpe.data, borderColor: purple, backgroundColor: purple + '22', borderWidth: 2, pointBackgroundColor: purple, pointRadius: 5, fill: true, tension: 0.3 }] },
-    options: rpeScale
-  });
+  // ── NOUVEAU : Ratio Push/Pull/Legs/Core ───────────────
+  (function buildPushPullLegs() {
+    const cat_colors = { push: orange, pull: blue, legs: green, core: purple };
+    const weeks = [];
+    const data  = { push: [], pull: [], legs: [], core: [] };
+
+    for (const [ex, exdata] of Object.entries(weights)) {
+      const cat = inventory[ex]?.category || '';
+      if (!cat_colors[cat]) continue;
+      for (const entry of (exdata.history || [])) {
+        const reps = (entry.reps || '').split(',').map(Number).filter(Boolean);
+        const vol  = (entry.weight || 0) * reps.reduce((a,b)=>a+b,0);
+        const wk   = weekKey(entry.date);
+        if (!weeks.includes(wk)) weeks.push(wk);
+        data[cat][weeks.indexOf(wk)] = (data[cat][weeks.indexOf(wk)] || 0) + vol;
+      }
+    }
+    const sorted = [...weeks].sort();
+    new Chart(document.getElementById('pushPullLegs'), {
+      type: 'bar',
+      data: {
+        labels: sorted,
+        datasets: Object.entries(cat_colors).map(([cat, color]) => ({
+          label: cat.charAt(0).toUpperCase() + cat.slice(1),
+          data:  sorted.map((wk) => Math.round(data[cat][weeks.indexOf(wk)] || 0)),
+          backgroundColor: color + 'cc',
+          borderColor: color,
+          borderWidth: 1,
+          borderRadius: 3,
+        }))
+      },
+      options: {
+        ...defaults,
+        plugins: { legend: { display: true, labels: { color: '#888', font: { size: 11 }, boxWidth: 12 } } },
+        scales: {
+          x: { stacked: true, ticks: { color: '#666' }, grid: { color: '#1e1e2a' } },
+          y: { stacked: true, ticks: { color: '#666' }, grid: { color: '#1e1e2a' } }
+        }
+      }
+    });
+  })();
+
+  // ── NOUVEAU : Top 5 volume cumulé ────────────────────
+  (function buildTop5() {
+    const totals = {};
+    for (const [ex, data] of Object.entries(weights)) {
+      for (const entry of (data.history || [])) {
+        const reps = (entry.reps || '').split(',').map(Number).filter(Boolean);
+        totals[ex] = (totals[ex] || 0) + (entry.weight || 0) * reps.reduce((a,b)=>a+b,0);
+      }
+    }
+    const top5 = Object.entries(totals).sort(([,a],[,b])=>b-a).slice(0,5);
+    const palette = [orange, blue, green, purple, rose];
+    new Chart(document.getElementById('top5Volume'), {
+      type: 'bar',
+      data: {
+        labels: top5.map(([ex]) => ex),
+        datasets: [{
+          data: top5.map(([,v]) => Math.round(v)),
+          backgroundColor: palette.map(c => c + 'bb'),
+          borderColor: palette,
+          borderWidth: 1,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        ...defaults,
+        scales: {
+          x: { ticks: { color: '#666' }, grid: { color: '#1e1e2a' } },
+          y: { ticks: { color: '#ccc', font: { size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+  })();
+
+  // ── NOUVEAU : Progression 1RM ─────────────────────────
+  (function build1RM() {
+    // Calcule 1RM estimé (Epley) pour les top 5 exos
+    const counts = {};
+    for (const [ex, data] of Object.entries(weights)) {
+      counts[ex] = (data.history || []).length;
+    }
+    const topExos = Object.entries(counts).sort(([,a],[,b])=>b-a).slice(0,5).map(([ex])=>ex);
+    const palette = [orange, blue, green, purple, rose];
+    const datasets = [];
+    const allDates = new Set();
+
+    topExos.forEach((ex, i) => {
+      const pts = [];
+      for (const entry of [...(weights[ex]?.history||[])].sort((a,b)=>a.date.localeCompare(b.date))) {
+        const reps = (entry.reps||'').split(',').map(Number).filter(Boolean);
+        const w    = entry.weight || 0;
+        if (!reps.length || !w) continue;
+        const avg  = reps.reduce((a,b)=>a+b,0)/reps.length;
+        const orm  = Math.round(w * (1 + avg/30) * 10) / 10;
+        pts.push({ x: entry.date, y: orm });
+        allDates.add(entry.date);
+      }
+      if (pts.length) {
+        datasets.push({
+          label: ex,
+          data: pts,
+          borderColor: palette[i],
+          backgroundColor: palette[i] + '22',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3,
+          parsing: false
+        });
+      }
+    });
+
+    // Filtres par exercice
+    const filterEl = document.getElementById('orm-filters');
+    let ormChart = null;
+
+    function renderORM(visibleLabels) {
+      if (ormChart) ormChart.destroy();
+      const filtered = datasets.filter(d => visibleLabels.has(d.label));
+      ormChart = new Chart(document.getElementById('ormProgression'), {
+        type: 'line',
+        data: { datasets: filtered },
+        options: {
+          ...defaults,
+          plugins: { legend: { display: true, labels: { color: '#888', font: { size: 10 }, boxWidth: 10 } } },
+          scales: {
+            x: { type: 'category', ticks: { color: '#666', maxTicksLimit: 10 }, grid: { color: '#1e1e2a' } },
+            y: { ticks: { color: '#666' }, grid: { color: '#1e1e2a' } }
+          }
+        }
+      });
+    }
+
+    const visible = new Set(datasets.map(d => d.label));
+    datasets.forEach((d, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'muscle-filter active';
+      btn.style.borderColor = palette[i];
+      btn.style.color = palette[i];
+      btn.textContent = d.label;
+      btn.onclick = () => {
+        btn.classList.toggle('active');
+        if (visible.has(d.label)) visible.delete(d.label); else visible.add(d.label);
+        renderORM(visible);
+      };
+      filterEl.appendChild(btn);
+    });
+    renderORM(visible);
+  })();
+
+  // ── NOUVEAU : Intensité relative ──────────────────────
+  (function buildIntensite() {
+    // 1RM récent par exercice
+    const orm1 = {};
+    for (const [ex, data] of Object.entries(weights)) {
+      const h = [...(data.history||[])].sort((a,b)=>b.date.localeCompare(a.date));
+      for (const entry of h.slice(0,3)) {
+        const reps = (entry.reps||'').split(',').map(Number).filter(Boolean);
+        const w = entry.weight||0;
+        if (w && reps.length) {
+          orm1[ex] = w * (1 + reps.reduce((a,b)=>a+b,0)/reps.length/30);
+          break;
+        }
+      }
+    }
+    const intByDate = {};
+    for (const [ex, data] of Object.entries(weights)) {
+      if (!orm1[ex]) continue;
+      for (const entry of (data.history||[])) {
+        const w = entry.weight||0;
+        if (w) {
+          if (!intByDate[entry.date]) intByDate[entry.date] = [];
+          intByDate[entry.date].push(w / orm1[ex] * 100);
+        }
+      }
+    }
+    const pts = Object.entries(intByDate).sort(([a],[b])=>a.localeCompare(b));
+    new Chart(document.getElementById('intensiteRelative'), {
+      type: 'line',
+      data: {
+        labels: pts.map(([d])=>d),
+        datasets: [{
+          data: pts.map(([,vals])=>Math.round(vals.reduce((a,b)=>a+b,0)/vals.length)),
+          borderColor: purple,
+          backgroundColor: purple+'22',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        ...defaults,
+        scales: {
+          x: { ticks: { color: '#666' }, grid: { color: '#1e1e2a' } },
+          y: { min: 40, max: 100, ticks: { color: '#666', callback: v => v+'%' }, grid: { color: '#1e1e2a' } }
+        }
+      }
+    });
+  })();
+
+  // ── NOUVEAU : Scatter RPE vs Volume ──────────────────
+  (function buildScatter() {
+    const volByDate = {};
+    for (const [ex, data] of Object.entries(weights)) {
+      for (const entry of (data.history||[])) {
+        const reps = (entry.reps||'').split(',').map(Number).filter(Boolean);
+        volByDate[entry.date] = (volByDate[entry.date]||0) + (entry.weight||0)*reps.reduce((a,b)=>a+b,0);
+      }
+    }
+    const pts = [];
+    for (const [date, s] of Object.entries(sessions)) {
+      if (s.rpe && volByDate[date]) {
+        pts.push({ x: s.rpe, y: Math.round(volByDate[date]) });
+      }
+    }
+    new Chart(document.getElementById('rpeVsVolume'), {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'Séance',
+          data: pts,
+          backgroundColor: orange + 'bb',
+          borderColor: orange,
+          borderWidth: 1,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { min: 1, max: 10, title: { display: true, text: 'RPE', color: '#666' }, ticks: { color: '#666', stepSize: 1 }, grid: { color: '#1e1e2a' } },
+          y: { title: { display: true, text: 'Volume (lbs×reps)', color: '#666' }, ticks: { color: '#666' }, grid: { color: '#1e1e2a' } }
+        }
+      }
+    });
+  })();
 
   const hs = computeHiitSpeeds();
   if (hs.labels.length > 0) {
