@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .db import get_json
+from db import get_json
 
 # Charge l'historique HIIT depuis KV (clé "hiit_log")
 def load_hiit_log():
