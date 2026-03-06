@@ -367,30 +367,20 @@ def api_delete_hiit():
 
 @app.route("/api/save_exercise", methods=["POST"])
 def api_save_exercise():
-    data          = request.json
-    original_name = data.get("original_name", "")
-    name          = data.get("name", "").strip()
+    from inventory import save_inventory
+    data = request.json
+    # ... (ton code de préparation de l'exercice)
 
-    if not name:
-        return jsonify({"error": "Nom manquant"}), 400
+    # 1. On lance la sauvegarde et on ATTEND le booléen de retour
+    success = save_inventory(inv)
 
-    inv = load_inventory()
-    if original_name and original_name != name and original_name in inv:
-        del inv[original_name]
+    # 2. Si db.py a renvoyé False, on stoppe tout avec une erreur 500
+    if not success:
+        return jsonify({
+            "success": False,
+            "message": "Erreur critique : Supabase a refusé l'écriture ou le client est mal initialisé."
+        }), 500
 
-    inv[name] = {
-        "type":           data.get("type", "machine"),
-        "increment":      float(data.get("increment", 5)),
-        "bar_weight":     float(data.get("bar_weight", 0)),
-        "default_scheme": data.get("default_scheme", "3x8-12"),
-        "muscles":        data.get("muscles", []),
-        "tips":           data.get("tips", ""),
-        "category":       data.get("category", ""),
-        "pattern":        data.get("pattern", ""),
-        "level":          data.get("level", ""),
-    }
-
-    save_inventory(inv)
     return jsonify({"success": True})
 
 
