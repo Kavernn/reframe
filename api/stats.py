@@ -170,8 +170,8 @@ def compute_hiit_rounds(hiit_log: list) -> list[dict]:
     return [
         {
             "date":      e["date"],
-            "completes": e["rounds_complétés"],
-            "planifies": e["rounds_planifiés"]
+            "completes": e.get("rounds_completes", e.get("rounds_complétés", 0)),
+            "planifies":  e.get("rounds_planifies", e.get("rounds_planifiés", 0))
         }
         for e in hiit_log
     ]

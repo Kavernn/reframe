@@ -281,6 +281,11 @@
   </div>
 </div>
 
+<div class="chart-card">
+  <h3>🏃 Vitesses sprint max vs croisière</h3>
+  <canvas id="hiitSpeeds" height="120"></canvas>
+</div>
+
 <!-- ANALYSE MUSCULAIRE -->
 <div class="section-label">💪 Analyse musculaire</div>
 
@@ -564,6 +569,15 @@
     return { labels: result.map(([d]) => d), data: result.map(([, s]) => s.rpe) };
   }
 
+  function computeHiitSpeeds() {
+    const sorted = [...hiitLog].filter(e => e.vitesse_max || e.vitesse_croisiere).sort((a, b) => a.date.localeCompare(b.date));
+    return {
+      labels:    sorted.map(e => e.date),
+      sprint:    sorted.map(e => e.vitesse_max || null),
+      croisiere: sorted.map(e => e.vitesse_croisiere || null)
+    };
+  }
+
   function computeHiitRpe() {
     const sorted = [...hiitLog].filter(e => e.rpe).sort((a, b) => a.date.localeCompare(b.date));
     return { labels: sorted.map(e => e.date), data: sorted.map(e => e.rpe) };
@@ -619,6 +633,28 @@
     options: rpeScale
   });
 
+  const hs = computeHiitSpeeds();
+  if (hs.labels.length > 0) {
+    new Chart(document.getElementById('hiitSpeeds'), {
+      type: 'line',
+      data: {
+        labels: hs.labels,
+        datasets: [
+          { label: 'Sprint max', data: hs.sprint, borderColor: rose, backgroundColor: rose + '22', borderWidth: 2, pointBackgroundColor: rose, pointRadius: 4, fill: false, tension: 0.3, spanGaps: true },
+          { label: 'Croisière',  data: hs.croisiere, borderColor: green, backgroundColor: green + '22', borderWidth: 2, pointBackgroundColor: green, pointRadius: 4, fill: false, tension: 0.3, spanGaps: true }
+        ]
+      },
+      options: {
+        ...defaults,
+        plugins: { legend: { display: true, labels: { color: '#888', font: { size: 11 }, boxWidth: 12 } } },
+        scales: {
+          x: { ticks: { color: '#666' }, grid: { color: '#1e1e2a' } },
+          y: { min: 5, ticks: { color: '#666' }, grid: { color: '#1e1e2a' } }
+        }
+      }
+    });
+  }
+
   const hr = computeHiitRpe();
   new Chart(document.getElementById('hiitRpe'), {
     type: 'line',
@@ -657,27 +693,48 @@
 
 // Groupes musculaires normalisés
 const MUSCLE_GROUPS = {
-  'pectoraux':              { label: 'Pecs',        color: '#f97316' },
-  'pectoraux supérieurs':   { label: 'Pecs',        color: '#f97316' },
-  'grand dorsal':           { label: 'Dos',         color: '#3b82f6' },
-  'lats':                   { label: 'Dos',         color: '#3b82f6' },
-  'rhomboïdes':             { label: 'Dos',         color: '#3b82f6' },
-  'haut du dos':            { label: 'Dos',         color: '#3b82f6' },
-  'quadriceps':             { label: 'Quadriceps',  color: '#22c55e' },
-  'ischio-jambiers':        { label: 'Ischio',      color: '#a855f7' },
-  'fessiers':               { label: 'Fessiers',    color: '#ec4899' },
-  'deltoïdes':              { label: 'Épaules',     color: '#f59e0b' },
-  'deltoïdes antérieurs':   { label: 'Épaules',     color: '#f59e0b' },
-  'deltoïdes latéraux':     { label: 'Épaules',     color: '#f59e0b' },
-  'deltoïdes postérieurs':  { label: 'Épaules',     color: '#f59e0b' },
-  'triceps':                { label: 'Triceps',     color: '#14b8a6' },
-  'biceps':                 { label: 'Biceps',      color: '#f43f5e' },
-  'biceps brachialis':      { label: 'Biceps',      color: '#f43f5e' },
-  'trapèzes':               { label: 'Trapèzes',    color: '#8b5cf6' },
-  'bas du dos':             { label: 'Bas du dos',  color: '#06b6d4' },
-  'abdominaux':             { label: 'Abdos',       color: '#84cc16' },
-  'mollets':                { label: 'Mollets',     color: '#fb923c' },
-  'avant-bras':             { label: 'Avant-bras',  color: '#a3a3a3' },
+  // ── Anglais (ExerciseDB API) ──
+  'pectorals':               { label: 'Pecs',       color: '#f97316' },
+  'serratus anterior':       { label: 'Pecs',       color: '#f97316' },
+  'lats':                    { label: 'Dos',        color: '#3b82f6' },
+  'upper back':              { label: 'Dos',        color: '#3b82f6' },
+  'traps':                   { label: 'Dos',        color: '#3b82f6' },
+  'spine':                   { label: 'Dos',        color: '#3b82f6' },
+  'quads':                   { label: 'Quadriceps', color: '#22c55e' },
+  'quadriceps':              { label: 'Quadriceps', color: '#22c55e' },
+  'hamstrings':              { label: 'Ischio',     color: '#a855f7' },
+  'glutes':                  { label: 'Fessiers',   color: '#ec4899' },
+  'delts':                   { label: 'Épaules',    color: '#f59e0b' },
+  'deltoid':                 { label: 'Épaules',    color: '#f59e0b' },
+  'deltoid lateral':         { label: 'Épaules',    color: '#f59e0b' },
+  'triceps':                 { label: 'Triceps',    color: '#14b8a6' },
+  'biceps':                  { label: 'Biceps',     color: '#f43f5e' },
+  'biceps brachii':          { label: 'Biceps',     color: '#f43f5e' },
+  'brachialis':              { label: 'Biceps',     color: '#f43f5e' },
+  'abs':                     { label: 'Abdos',      color: '#84cc16' },
+  'obliques':                { label: 'Abdos',      color: '#84cc16' },
+  'hip flexors':             { label: 'Hanches',    color: '#d946ef' },
+  'adductors':               { label: 'Hanches',    color: '#d946ef' },
+  'abductors':               { label: 'Hanches',    color: '#d946ef' },
+  'calves':                  { label: 'Mollets',    color: '#fb923c' },
+  'forearms':                { label: 'Avant-bras', color: '#a3a3a3' },
+  'lower back':              { label: 'Bas du dos', color: '#06b6d4' },
+  'cardiovascular system':   { label: 'Cardio',     color: '#f43f5e' },
+  'levator scapulae':        { label: 'Dos',        color: '#3b82f6' },
+  'neck':                    { label: 'Cou',        color: '#94a3b8' },
+  'wrist flexors':           { label: 'Avant-bras', color: '#a3a3a3' },
+  // ── Français (ancien inventaire) ──
+  'pectoraux':               { label: 'Pecs',       color: '#f97316' },
+  'grand dorsal':            { label: 'Dos',        color: '#3b82f6' },
+  'rhomboïdes':              { label: 'Dos',        color: '#3b82f6' },
+  'haut du dos':             { label: 'Dos',        color: '#3b82f6' },
+  'ischio-jambiers':         { label: 'Ischio',     color: '#a855f7' },
+  'fessiers':                { label: 'Fessiers',   color: '#ec4899' },
+  'deltoïdes':               { label: 'Épaules',    color: '#f59e0b' },
+  'abdominaux':              { label: 'Abdos',      color: '#84cc16' },
+  'mollets':                 { label: 'Mollets',    color: '#fb923c' },
+  'avant-bras':              { label: 'Avant-bras', color: '#a3a3a3' },
+  'bas du dos':              { label: 'Bas du dos', color: '#06b6d4' },
   'fléchisseurs de la hanche': { label: 'Hanches', color: '#d946ef' },
 };
 
