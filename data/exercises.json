@@ -1,280 +1,411 @@
 {
   "Back Squat": {
     "type": "barbell",
+    "category": "legs",
+    "pattern": "squat",
+    "level": "beginner",
     "increment": 10.0,
     "bar_weight": 45.0,
     "default_scheme": "4x5-8",
-    "muscles": [
-      "quadriceps",
-      "fessiers",
-      "ischio-jambiers",
-      "bas du dos"
-    ],
-    "tips": ""
+    "muscles": ["quadriceps","fessiers","ischio-jambiers","bas du dos"]
   },
+
   "Front Squat": {
     "type": "barbell",
+    "category": "legs",
+    "pattern": "squat",
+    "level": "intermediate",
     "increment": 5.0,
     "bar_weight": 45.0,
-    "default_scheme": "3x8-10",
-    "muscles": [
-      "quadriceps",
-      "abdominaux",
-      "haut du dos"
-    ]
+    "default_scheme": "3x6-10",
+    "muscles": ["quadriceps","abdominaux","haut du dos"]
   },
+
+  "Goblet Squat": {
+    "type": "dumbbell",
+    "category": "legs",
+    "pattern": "squat",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x10-12",
+    "muscles": ["quadriceps","fessiers"]
+  },
+
+  "Bulgarian Split Squat": {
+    "type": "dumbbell",
+    "category": "legs",
+    "pattern": "single_leg",
+    "level": "intermediate",
+    "increment": 5.0,
+    "default_scheme": "3x8-10",
+    "muscles": ["quadriceps","fessiers"]
+  },
+
+  "Walking Lunges": {
+    "type": "dumbbell",
+    "category": "legs",
+    "pattern": "single_leg",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x12",
+    "muscles": ["quadriceps","fessiers"]
+  },
+
+  "Step Ups": {
+    "type": "dumbbell",
+    "category": "legs",
+    "pattern": "single_leg",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x10",
+    "muscles": ["quadriceps","fessiers"]
+  },
+
   "Deadlift": {
     "type": "barbell",
+    "category": "legs",
+    "pattern": "hinge",
+    "level": "beginner",
     "increment": 10.0,
     "bar_weight": 45.0,
     "default_scheme": "3x5",
-    "muscles": [
-      "ischio-jambiers",
-      "fessiers",
-      "bas du dos",
-      "trapèzes"
-    ]
+    "muscles": ["ischio-jambiers","fessiers","bas du dos","trapèzes"]
   },
+
   "Romanian Deadlift": {
     "type": "barbell",
+    "category": "legs",
+    "pattern": "hinge",
+    "level": "beginner",
     "increment": 5.0,
     "bar_weight": 45.0,
-    "default_scheme": "3x10-12",
-    "muscles": [
-      "ischio-jambiers",
-      "fessiers",
-      "bas du dos"
-    ]
+    "default_scheme": "3x8-10",
+    "muscles": ["ischio-jambiers","fessiers"]
   },
+
+  "Hip Thrust": {
+    "type": "barbell",
+    "category": "legs",
+    "pattern": "hinge",
+    "level": "beginner",
+    "increment": 10.0,
+    "bar_weight": 45.0,
+    "default_scheme": "4x8-10",
+    "muscles": ["fessiers"]
+  },
+
+  "Leg Press": {
+    "type": "machine",
+    "category": "legs",
+    "pattern": "squat",
+    "level": "beginner",
+    "increment": 10.0,
+    "default_scheme": "3x10-12",
+    "muscles": ["quadriceps","fessiers"]
+  },
+
+  "Leg Extension": {
+    "type": "machine",
+    "category": "legs",
+    "pattern": "isolation",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x12-15",
+    "muscles": ["quadriceps"]
+  },
+
+  "Leg Curl": {
+    "type": "machine",
+    "category": "legs",
+    "pattern": "isolation",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x12-15",
+    "muscles": ["ischio-jambiers"]
+  },
+
+  "Standing Calf Raise": {
+    "type": "machine",
+    "category": "legs",
+    "pattern": "calf",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "4x12-15",
+    "muscles": ["mollets"]
+  },
+
   "Bench Press": {
     "type": "barbell",
+    "category": "push",
+    "pattern": "horizontal_push",
+    "level": "beginner",
     "increment": 5.0,
     "bar_weight": 45.0,
     "default_scheme": "4x6-8",
-    "muscles": [
-      "pectoraux",
-      "triceps",
-      "deltoïdes antérieurs"
-    ]
+    "muscles": ["pectoraux","triceps","deltoïdes antérieurs"]
   },
-  "Overhead Press": {
+
+  "Incline Bench Press": {
     "type": "barbell",
-    "increment": 2.5,
+    "category": "push",
+    "pattern": "horizontal_push",
+    "level": "intermediate",
+    "increment": 5.0,
     "bar_weight": 45.0,
     "default_scheme": "3x8-10",
-    "muscles": [
-      "deltoïdes",
-      "triceps",
-      "abdominaux"
-    ]
+    "muscles": ["pectoraux supérieurs","deltoïdes antérieurs"]
   },
-  "Barbell Row": {
-    "type": "barbell",
+
+  "Flat DB Press": {
+    "type": "dumbbell",
+    "category": "push",
+    "pattern": "horizontal_push",
+    "level": "beginner",
     "increment": 5.0,
-    "bar_weight": 45.0,
     "default_scheme": "3x8-12",
-    "muscles": [
-      "grand dorsal",
-      "rhomboïdes",
-      "trapèzes"
-    ]
+    "muscles": ["pectoraux","triceps"]
   },
+
   "Incline DB Press": {
     "type": "dumbbell",
+    "category": "push",
+    "pattern": "horizontal_push",
+    "level": "beginner",
     "increment": 5.0,
     "default_scheme": "3x10-12",
-    "muscles": [
-      "pectoraux supérieurs",
-      "deltoïdes antérieurs"
-    ]
+    "muscles": ["pectoraux supérieurs","deltoïdes antérieurs"]
   },
-  "Dumbbell Row": {
-    "type": "dumbbell",
-    "increment": 5.0,
-    "default_scheme": "3x10-12",
-    "muscles": [
-      "grand dorsal",
-      "biceps",
-      "rhomboïdes"
-    ]
-  },
-  "Dumbbell Curl": {
-    "type": "dumbbell",
-    "increment": 2.5,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "biceps"
-    ]
-  },
-  "Hammer Curl": {
-    "type": "dumbbell",
-    "increment": 2.5,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "biceps brachialis",
-      "avant-bras"
-    ]
-  },
-  "Lateral Raise": {
-    "type": "dumbbell",
-    "increment": 2.5,
-    "default_scheme": "3x15-20",
-    "muscles": [
-      "deltoïdes latéraux"
-    ]
-  },
-  "Goblet Squat": {
-    "type": "dumbbell",
-    "increment": 5.0,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "quadriceps",
-      "fessiers"
-    ]
-  },
-  "Cable Fly": {
-    "type": "cable",
-    "increment": 2.5,
-    "bar_weight": 0.0,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "pectoraux"
-    ]
-  },
-  "Face Pull": {
-    "type": "cable",
-    "increment": 2.5,
-    "bar_weight": 0.0,
-    "default_scheme": "3x15-20",
-    "muscles": [
-      "deltoïdes postérieurs",
-      "trapèzes"
-    ]
-  },
-  "Triceps Pushdown": {
-    "type": "cable",
-    "increment": 2.5,
-    "bar_weight": 0.0,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "triceps"
-    ]
-  },
-  "Lat Pulldown": {
-    "type": "cable",
-    "increment": 5.0,
-    "bar_weight": 0.0,
-    "default_scheme": "3x10-12",
-    "muscles": [
-      "grand dorsal",
-      "biceps"
-    ]
-  },
-  "Cable Lateral Raise": {
-    "type": "cable",
-    "increment": 2.5,
-    "bar_weight": 0.0,
-    "default_scheme": "3x15-20",
-    "muscles": [
-      "deltoïdes latéraux"
-    ]
-  },
-  "Cable Crunch": {
-    "type": "cable",
-    "increment": 5.0,
-    "bar_weight": 0.0,
-    "default_scheme": "3x15-20",
-    "muscles": [
-      "abdominaux"
-    ]
-  },
-  "Pull-Up": {
+
+  "Push Up": {
     "type": "bodyweight",
+    "category": "push",
+    "pattern": "horizontal_push",
+    "level": "beginner",
     "increment": 0.0,
-    "default_scheme": "3x MAX",
-    "muscles": [
-      "grand dorsal",
-      "biceps"
-    ]
+    "default_scheme": "4xAMRAP",
+    "muscles": ["pectoraux","triceps"]
   },
-  "Chin-Up": {
-    "type": "bodyweight",
-    "increment": 0.0,
-    "default_scheme": "3x MAX",
-    "muscles": [
-      "biceps",
-      "grand dorsal"
-    ]
-  },
+
   "Dips": {
     "type": "bodyweight",
-    "increment": 0.0,
-    "default_scheme": "3x MAX",
-    "muscles": [
-      "triceps",
-      "pectoraux"
-    ]
+    "category": "push",
+    "pattern": "vertical_push",
+    "level": "intermediate",
+    "increment": 2.5,
+    "default_scheme": "3xAMRAP",
+    "muscles": ["triceps","pectoraux"]
   },
-  "Push-Up": {
-    "type": "bodyweight",
-    "increment": 0.0,
-    "default_scheme": "3x MAX",
-    "muscles": [
-      "pectoraux",
-      "triceps"
-    ]
+
+  "Overhead Press": {
+    "type": "barbell",
+    "category": "push",
+    "pattern": "vertical_push",
+    "level": "beginner",
+    "increment": 2.5,
+    "bar_weight": 45.0,
+    "default_scheme": "3x6-8",
+    "muscles": ["deltoïdes","triceps"]
   },
-  "Bulgarian Split Squat": {
-    "type": "bodyweight",
-    "increment": 0.0,
+
+  "Arnold Press": {
+    "type": "dumbbell",
+    "category": "push",
+    "pattern": "vertical_push",
+    "level": "intermediate",
+    "increment": 2.5,
+    "default_scheme": "3x8-10",
+    "muscles": ["deltoïdes"]
+  },
+
+  "Lateral Raise": {
+    "type": "dumbbell",
+    "category": "push",
+    "pattern": "isolation",
+    "level": "beginner",
+    "increment": 2.5,
+    "default_scheme": "3x12-15",
+    "muscles": ["deltoïdes latéraux"]
+  },
+
+  "Barbell Row": {
+    "type": "barbell",
+    "category": "pull",
+    "pattern": "horizontal_pull",
+    "level": "beginner",
+    "increment": 5.0,
+    "bar_weight": 45.0,
+    "default_scheme": "3x8-10",
+    "muscles": ["grand dorsal","rhomboïdes","trapèzes"]
+  },
+
+  "Pendlay Row": {
+    "type": "barbell",
+    "category": "pull",
+    "pattern": "horizontal_pull",
+    "level": "intermediate",
+    "increment": 5.0,
+    "bar_weight": 45.0,
+    "default_scheme": "4x6-8",
+    "muscles": ["grand dorsal","trapèzes"]
+  },
+
+  "Seated Cable Row": {
+    "type": "cable",
+    "category": "pull",
+    "pattern": "horizontal_pull",
+    "level": "beginner",
+    "increment": 5.0,
     "default_scheme": "3x10-12",
-    "muscles": [
-      "quadriceps",
-      "fessiers"
-    ]
+    "muscles": ["grand dorsal","rhomboïdes"]
   },
+
+  "Lat Pulldown": {
+    "type": "machine",
+    "category": "pull",
+    "pattern": "vertical_pull",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x8-12",
+    "muscles": ["grand dorsal","biceps"]
+  },
+
+  "Pull Up": {
+    "type": "bodyweight",
+    "category": "pull",
+    "pattern": "vertical_pull",
+    "level": "intermediate",
+    "increment": 2.5,
+    "default_scheme": "4xAMRAP",
+    "muscles": ["grand dorsal","biceps"]
+  },
+
+  "Chin Up": {
+    "type": "bodyweight",
+    "category": "pull",
+    "pattern": "vertical_pull",
+    "level": "intermediate",
+    "increment": 2.5,
+    "default_scheme": "4xAMRAP",
+    "muscles": ["biceps","grand dorsal"]
+  },
+
+  "Face Pull": {
+    "type": "cable",
+    "category": "pull",
+    "pattern": "isolation",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x12-15",
+    "muscles": ["deltoïdes postérieurs","trapèzes"]
+  },
+
+  "Barbell Curl": {
+    "type": "barbell",
+    "category": "pull",
+    "pattern": "isolation",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x10-12",
+    "muscles": ["biceps"]
+  },
+
+  "Hammer Curl": {
+    "type": "dumbbell",
+    "category": "pull",
+    "pattern": "isolation",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x10-12",
+    "muscles": ["biceps","avant-bras"]
+  },
+
+  "Skull Crusher": {
+    "type": "barbell",
+    "category": "push",
+    "pattern": "isolation",
+    "level": "intermediate",
+    "increment": 2.5,
+    "default_scheme": "3x10-12",
+    "muscles": ["triceps"]
+  },
+
+  "Tricep Pushdown": {
+    "type": "cable",
+    "category": "push",
+    "pattern": "isolation",
+    "level": "beginner",
+    "increment": 5.0,
+    "default_scheme": "3x12",
+    "muscles": ["triceps"]
+  },
+
+  "Plank": {
+    "type": "bodyweight",
+    "category": "core",
+    "pattern": "anti_extension",
+    "level": "beginner",
+    "increment": 0.0,
+    "default_scheme": "3x60s",
+    "muscles": ["abdominaux","gainage"]
+  },
+
   "Hanging Leg Raise": {
     "type": "bodyweight",
+    "category": "core",
+    "pattern": "flexion",
+    "level": "intermediate",
     "increment": 0.0,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "abdominaux",
-      "fléchisseurs de la hanche"
-    ]
+    "default_scheme": "3x12",
+    "muscles": ["abdominaux"]
   },
-  "Leg Extension": {
-    "type": "machine",
-    "increment": 5.0,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "quadriceps"
-    ]
+
+  "Russian Twist": {
+    "type": "bodyweight",
+    "category": "core",
+    "pattern": "rotation",
+    "level": "beginner",
+    "increment": 0.0,
+    "default_scheme": "3x20",
+    "muscles": ["abdominaux obliques"]
   },
-  "Leg Curl": {
-    "type": "machine",
+
+  "Cable Crunch": {
+    "type": "cable",
+    "category": "core",
+    "pattern": "flexion",
+    "level": "beginner",
     "increment": 5.0,
-    "default_scheme": "3x12-15",
-    "muscles": [
-      "ischio-jambiers"
-    ]
+    "default_scheme": "3x15",
+    "muscles": ["abdominaux"]
   },
-  "Calf Raise": {
-    "type": "machine",
-    "increment": 5.0,
-    "default_scheme": "4x15-20",
-    "muscles": [
-      "mollets"
-    ]
+
+  "Hamstring Stretch": {
+    "type": "stretch",
+    "category": "mobility",
+    "pattern": "flexibility",
+    "level": "beginner",
+    "increment": 0.0,
+    "default_scheme": "3x30s",
+    "muscles": ["ischio-jambiers"]
   },
-  "T Bar Row Supporté": {
-    "type": "dumbbell",
-    "increment": 5.0,
-    "bar_weight": 0.0,
-    "default_scheme": "3x8-12",
-    "muscles": [
-      "lats",
-      "trapèzes"
-    ],
-    "tips": ""
+
+  "Hip Flexor Stretch": {
+    "type": "stretch",
+    "category": "mobility",
+    "pattern": "flexibility",
+    "level": "beginner",
+    "increment": 0.0,
+    "default_scheme": "3x30s",
+    "muscles": ["fléchisseurs de hanche"]
+  },
+
+  "Child Pose": {
+    "type": "stretch",
+    "category": "mobility",
+    "pattern": "flexibility",
+    "level": "beginner",
+    "increment": 0.0,
+    "default_scheme": "3x45s",
+    "muscles": ["bas du dos"]
   }
 }

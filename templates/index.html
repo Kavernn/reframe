@@ -20,6 +20,34 @@
     <span class="badge badge-blue">Semaine {{ week }}</span>
   </div>
 
+  {% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
+  <!-- Séance spéciale — affiché en évidence -->
+  <div class="mt-16" style="
+    background: var(--orange)11;
+    border: 1px solid var(--orange)44;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 12px;
+  ">
+    <div style="font-size: 2rem; margin-bottom: 8px;">
+      {% if 'HIIT' in today %}🏃{% elif today == 'Yoga' %}🧘{% else %}☯️{% endif %}
+    </div>
+    <div style="font-family: 'Barlow Condensed'; font-size: 1.4rem; font-weight: 800; color: var(--orange);">
+      {{ today }} — Programme du jour
+    </div>
+    <div class="text-muted" style="font-size: 0.85rem; margin: 6px 0 14px;">
+      {% if 'HIIT' in today %}Simulation shift hockey — {{ protocole_label if protocole_label else 'Timer interactif' }}
+      {% elif today == 'Yoga' %}Mobilité & flexibilité — 45 min
+      {% else %}Récupération active — 30 min{% endif %}
+    </div>
+    <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
+      Commencer {{ today }}
+    </a>
+  </div>
+
+  {% else %}
+  <!-- Séance muscu -->
   {% if suggestions %}
   <div class="mt-16">
     <div class="card-title">Poids recommandés</div>
@@ -43,21 +71,16 @@
   {% endif %}
 
   <div class="mt-16">
-    {% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
-    <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
-      {% if 'HIIT' in today %}🏃
-      {% elif today == 'Yoga' %}🧘
-      {% else %}☯️{% endif %}
-      {{ today }}
-    </a>
-    {% else %}
     <a href="/seance" class="btn btn-primary btn-block">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 4v16M18 4v16M6 12h12M2 7h4M18 7h4M2 17h4M18 17h4"/>
       </svg>
       Logger ma séance
     </a>
-    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="mt-8">
     <a href="/programme" class="btn btn-secondary btn-block mt-8">
       📅 Modifier le programme
     </a>
@@ -69,7 +92,6 @@
     </a>
   </div>
 </div>
-
 <!-- PLANNING SEMAINE -->
 <div class="card mb-16">
   <div class="card-title">Planning de la semaine</div>
