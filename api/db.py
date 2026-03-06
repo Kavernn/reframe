@@ -122,25 +122,27 @@ def _get_online(key: str) -> Tuple[Optional[Any], Optional[str]]:
     if not _client:
         return None, None
     try:
-        # On récupère value + updated_at pour arbitrer LWW
         resp = _client.table(_TABLE).select("value,updated_at").eq("key", key).single().execute()
         data = getattr(resp, "data", None)
         if not data:
             return None, None
         return data.get("value"), data.get("updated_at")
-    except Exception:
+    except Exception as e:
+        print(f"DEBUG GET ERROR: {e}") # Apparaîtra dans les logs Vercel
         return None, None
 
 def _set_online(key: str, value: Any) -> Tuple[bool, Optional[str]]:
     if not _client:
+        print("DEBUG SET ERROR: Client Supabase non initialisé")
         return False, None
     try:
+        # Tentative d'insertion
         resp = _client.table(_TABLE).upsert({"key": key, "value": value}).select("updated_at").single().execute()
         data = getattr(resp, "data", None) or {}
         return True, data.get("updated_at")
-    except Exception:
+    except Exception as e:
+        print(f"DEBUG SET ERROR: {e}") # Apparaîtra dans les logs Vercel
         return False, None
-
 # ---------------------------------------------------------------------------
 # API publique utilisée par tes modules
 # ---------------------------------------------------------------------------
