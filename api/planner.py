@@ -54,7 +54,9 @@ def save_program(program: dict):
 
 
 def get_today() -> str:
-    return SCHEDULE[datetime.today().weekday()]
+    from datetime import timezone, timedelta
+    EST = timezone(timedelta(hours=-5))
+    return SCHEDULE[datetime.now(EST).weekday()]
 
 
 def get_week_schedule() -> Dict[str, str]:

@@ -168,25 +168,27 @@ def seance():
 
 @app.route("/seance_speciale/<path:session_type>")
 def seance_speciale(session_type):
+    from urllib.parse import unquote
+    session_type = unquote(session_type)  # ← décode HIIT%201 → HIIT 1
+
     week = get_current_week()
     if week <= 4:
-        protocole = {"rounds": 8,  "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 20}
+        protocole = {"rounds": 8, "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 20}
     elif week <= 8:
         protocole = {"rounds": 10, "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 25}
     elif week <= 12:
         protocole = {"rounds": 12, "sprint_spd": 13.0, "jog_spd": 6.5, "duree": 28}
     elif week <= 16:
-        protocole = {"rounds": 8,  "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 20}
+        protocole = {"rounds": 8, "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 20}
     else:
         protocole = {"rounds": 10, "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 25}
 
     return render_template("seance_speciale.html",
-        session_type = session_type,
-        protocole    = protocole,
-        week         = week,
-        now          = datetime.now().strftime("%Y-%m-%d")
-    )
-
+                           session_type=session_type,
+                           protocole=protocole,
+                           week=week,
+                           now=datetime.now().strftime("%Y-%m-%d")
+                           )
 
 @app.route("/historique")
 def historique():
