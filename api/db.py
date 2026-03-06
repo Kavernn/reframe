@@ -131,17 +131,32 @@ def _get_online(key: str) -> Tuple[Optional[Any], Optional[str]]:
         print(f"DEBUG GET ERROR: {e}") # Apparaîtra dans les logs Vercel
         return None, None
 
+
 def _set_online(key: str, value: Any) -> Tuple[bool, Optional[str]]:
     if not _client:
-        print("DEBUG SET ERROR: Client Supabase non initialisé")
+        print("DEBUG: Client Supabase non initialisé")
         return False, None
     try:
-        # Tentative d'insertion
-        resp = _client.table(_TABLE).upsert({"key": key, "value": value}).select("updated_at").single().execute()
-        data = getattr(resp, "data", None) or {}
-        return True, data.get("updated_at")
+        # On tente l'upsert
+        payload = {"key": key, "value": value}
+        print(f"DEBUG: Tentative upsert pour la clé: {key}")
+
+        # Utilisation de .execute() pour obtenir la réponse
+        resp = _client.table(_TABLE).upsert(payload).execute()
+
+        # Vérification si des données ont été retournées
+        if hasattr(resp, 'data') and len(resp.data) > 0:
+            updated_at = resp.data[0].get("updated_at")
+            print(f"DEBUG: Succès Supabase pour {key}")
+            return True, updated_at
+
+        # Si succès mais pas de data en retour (dépend de la version du SDK)
+        print(f"DEBUG: Upsert envoyé pour {key} (vérifier manuellement)")
+        return True, _now_iso()
+
     except Exception as e:
-        print(f"DEBUG SET ERROR: {e}") # Apparaîtra dans les logs Vercel
+        # C'est ici que l'erreur cruciale va apparaître dans tes logs Vercel
+        print(f"DEBUG ERROR Supabase détaillée: {type(e).__name__} - {str(e)}")
         return False, None
 # ---------------------------------------------------------------------------
 # API publique utilisée par tes modules
