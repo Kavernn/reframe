@@ -201,8 +201,8 @@
 
 <!-- LISTE DES SÉANCES -->
 {% for entry in hiit_log %}
-{% set completes_entry = entry.get('rounds_complétés', entry.get('rounds_completes', 0)) %}
-{% set planifies_entry = entry.get('rounds_planifiés', entry.get('rounds_planifies', 0)) %}
+{% set completes_entry = entry.rounds_completes or entry.get('rounds_complétés', 0) %}
+{% set planifies_entry = entry.rounds_planifies or entry.get('rounds_planifiés', 0) %}
 {% set pct = ((completes_entry / planifies_entry) * 100) | round | int if planifies_entry > 0 else 0 %}
 <div class="hiit-card">
 
@@ -241,7 +241,7 @@
   <div class="hiit-stats">
     <div class="hiit-stat">
       <div class="hiit-stat-val">
-        {{ entry['rounds_complétés'] }}/{{ entry['rounds_planifiés'] }}
+        {{ entry.rounds_completes or entry.get('rounds_complétés', '—') }}/{{ entry.rounds_planifies or entry.get('rounds_planifiés', '—') }}
       </div>
       <div class="hiit-stat-lbl">Rounds</div>
     </div>
@@ -250,7 +250,14 @@
         {{ entry.vitesse_max if entry.vitesse_max else '—' }}
         {% if entry.vitesse_max %}<span style="font-size: 0.8rem; color: var(--muted);">km/h</span>{% endif %}
       </div>
-      <div class="hiit-stat-lbl">Vitesse max</div>
+      <div class="hiit-stat-lbl">Sprint max</div>
+    </div>
+    <div class="hiit-stat">
+      <div class="hiit-stat-val">
+        {{ entry.vitesse_croisiere if entry.vitesse_croisiere else '—' }}
+        {% if entry.vitesse_croisiere %}<span style="font-size: 0.8rem; color: var(--muted);">km/h</span>{% endif %}
+      </div>
+      <div class="hiit-stat-lbl">Croisière</div>
     </div>
     <div class="hiit-stat">
       <div class="hiit-stat-val">
@@ -258,10 +265,6 @@
         {% if entry.rpe %}<span style="font-size: 0.8rem; color: var(--muted);">/10</span>{% endif %}
       </div>
       <div class="hiit-stat-lbl">RPE</div>
-    </div>
-    <div class="hiit-stat">
-      <div class="hiit-stat-val">{{ pct }}%</div>
-      <div class="hiit-stat-lbl">Complété</div>
     </div>
   </div>
 

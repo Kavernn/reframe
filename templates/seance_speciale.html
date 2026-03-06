@@ -305,6 +305,19 @@
       <input type="number" id="log-speed" placeholder="{{ protocole.sprint_spd }}" step="0.5">
     </div>
     <div class="form-group">
+      <label>Vitesse de croisière (km/h)</label>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px;">
+        {% for spd in [6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0] %}
+        <button type="button"
+          class="filter-tab"
+          onclick="setCruiseSpeed({{ spd }}, this)">
+          {{ spd }}
+        </button>
+        {% endfor %}
+      </div>
+      <input type="number" id="log-cruise" placeholder="{{ protocole.jog_spd }}" step="0.5">
+    </div>
+    <div class="form-group">
       <label>RPE (1-10)</label>
       <input type="number" id="log-rpe" placeholder="8" min="1" max="10">
     </div>
@@ -722,18 +735,30 @@
   }
 
   // ── LOG HIIT ──────────────────────────────────────────
+  function setCruiseSpeed(val, btn) {
+    document.getElementById('log-cruise').value = val;
+    document.querySelectorAll('#log-cruise-btns .filter-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
   async function logHIIT() {
-    const rounds  = parseInt(document.getElementById('log-rounds').value) || MAX_ROUNDS;
-    const speed   = document.getElementById('log-speed').value || null;
-    const rpe     = parseInt(document.getElementById('log-rpe').value) || null;
-    const feeling = document.getElementById('log-feeling').value;
-    const comment = document.getElementById('log-comment').value.trim();
+    const rounds       = parseInt(document.getElementById('log-rounds').value) || MAX_ROUNDS;
+    const vitesse_max  = parseFloat(document.getElementById('log-speed').value) || null;
+    const vitesse_croisiere = parseFloat(document.getElementById('log-cruise').value) || null;
+    const rpe          = parseInt(document.getElementById('log-rpe').value) || null;
+    const feeling      = document.getElementById('log-feeling').value;
+    const comment      = document.getElementById('log-comment').value.trim();
 
     const res = await fetch('/api/log_hiit', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
-        rounds, speed, rpe, feeling, comment,
+        rounds,           // ✅ clé attendue par api_log_hiit
+        speed: vitesse_max,
+        vitesse_croisiere,
+        rpe,
+        feeling,
+        comment,
         session_type: "{{ session_type }}",
         week: {{ week }}
       })
@@ -743,6 +768,8 @@
     if (data.success) {
       showToast('HIIT sauvegardé ! 🏃');
       setTimeout(() => window.location.href = '/', 1500);
+    } else {
+      showToast('Erreur sauvegarde !', 'error');
     }
   }
 

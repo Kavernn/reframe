@@ -22,6 +22,7 @@ from deload       import analyser_deload, load_deload_state
 from goals        import load_goals, check_goals_achieved, get_progress_bar, set_goal
 from body_weight  import load_body_weight, log_body_weight, get_tendance
 from db           import get_json, set_json
+from db           import _ON_VERCEL
 
 # ── App config ──────────────────────────────────────────────
 _API_DIR  = os.path.dirname(os.path.abspath(__file__))
@@ -337,14 +338,16 @@ def api_log_hiit():
     hiit_log = load_hiit_log_local()
 
     entry = {
-        "date":             datetime.now().strftime("%Y-%m-%d"),
-        "week":             week,
-        "rounds_planifies": data.get("rounds", 0),
-        "rounds_completes": data.get("rounds", 0),
-        "vitesse_max":      data.get("speed"),
-        "rpe":              data.get("rpe"),
-        "feeling":          data.get("feeling", "—"),
-        "comment":          data.get("comment", "")
+        "date":               datetime.now().strftime("%Y-%m-%d"),
+        "week":               week,
+        "session_type":       data.get("session_type", "HIIT"),
+        "rounds_planifies":   data.get("rounds", 0),
+        "rounds_completes":   data.get("rounds", 0),
+        "vitesse_max":        data.get("speed"),
+        "vitesse_croisiere":  data.get("vitesse_croisiere"),
+        "rpe":                data.get("rpe"),
+        "feeling":            data.get("feeling", "—"),
+        "comment":            data.get("comment", "")
     }
 
     hiit_log.insert(0, entry)
