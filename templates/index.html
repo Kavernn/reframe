@@ -53,17 +53,7 @@
     margin-bottom: 5px;
   }
 
-  .hero-session {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 2.6rem;
-    font-weight: 900;
-    background: linear-gradient(135deg, var(--orange), var(--orange3));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1;
-    letter-spacing: -0.5px;
-  }
+  .hero-session { display: none; }
 
   .hero-week {
     font-family: 'Barlow Condensed', sans-serif;
@@ -360,21 +350,15 @@
     text-align: right;
   }
 
-  /* ── SÉANCE SPÉCIALE ── */
-  .special-card {
-    background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(25,25,38,0.9));
-    border: 1px solid rgba(249,115,22,0.2);
-    border-radius: var(--radius);
-    padding: 24px 20px;
-    text-align: center;
+  /* ── HERO SESSION INFO ── */
+  .hero-session-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
     margin-bottom: 14px;
-    backdrop-filter: blur(16px);
-    box-shadow: 0 4px 32px rgba(249,115,22,0.1);
   }
-
-  .special-icon { font-size: 2.8rem; margin-bottom: 10px; display: block; }
-
-  .special-name {
+  .hero-session-icon { font-size: 2.2rem; flex-shrink: 0; line-height: 1; }
+  .hero-session-name {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 2rem;
     font-weight: 900;
@@ -382,8 +366,21 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: 6px;
+    line-height: 1;
+    letter-spacing: -0.5px;
   }
+  .hero-session-desc { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+
+  .hero-banner.special {
+    background: linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(17,17,28,0.95) 100%);
+    border-color: rgba(249,115,22,0.25);
+    box-shadow: 0 4px 32px rgba(249,115,22,0.12), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .hero-suggestions { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .hero-suggestions table { width: 100%; font-size: 0.82rem; }
+  .hero-suggestions th { color: var(--muted); font-weight: 600; text-align: left; padding-bottom: 4px; }
+  .hero-suggestions td { padding: 3px 0; }
 
   /* ── PLANNING SEMAINE ── */
   .week-grid {
@@ -599,15 +596,54 @@
 </div>
 {% endif %}
 
-<!-- ① HERO — date + streak compact -->
-<div class="hero-banner fade-up">
+<!-- ① HERO UNIFIÉ — date + séance + CTA + heatmap -->
+<div class="hero-banner {% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}special{% endif %} fade-up">
   <div class="hero-top">
-    <div>
-      <div class="hero-date" id="hero-date">Chargement...</div>
-      <div class="hero-session">{{ today }}</div>
-    </div>
+    <div class="hero-date" id="hero-date">Chargement...</div>
     <span class="hero-week">Sem. {{ week }}</span>
   </div>
+
+  <div class="hero-session-row">
+    <span class="hero-session-icon">
+      {% if 'HIIT' in today %}🏃{% elif today == 'Yoga' %}🧘{% elif today == 'Recovery' %}☯️{% else %}🏋️{% endif %}
+    </span>
+    <div>
+      <div class="hero-session-name">{{ today }}</div>
+      <div class="hero-session-desc">
+        {% if 'HIIT' in today %}Simulation shift hockey
+        {% elif today == 'Yoga' %}Mobilité &amp; flexibilité — 45 min
+        {% elif today == 'Recovery' %}Récupération active — 30 min
+        {% elif suggestions %}{{ suggestions|length }} exercices · poids suggérés ci-dessous
+        {% else %}Aucun exercice programmé{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
+  <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block" style="margin-bottom: 16px;">
+    Commencer {{ today }} →
+  </a>
+  {% else %}
+  <a href="/seance" class="btn btn-primary btn-block" style="margin-bottom:{% if suggestions %}10px{% else %}16px{% endif %};">
+    🏋️ Logger ma séance
+  </a>
+  {% if suggestions %}
+  <div class="hero-suggestions">
+    <table>
+      <thead><tr><th>Exercice</th><th>Recommandé</th></tr></thead>
+      <tbody>
+        {% for item in suggestions %}
+        <tr>
+          <td>{{ item.exercise }}</td>
+          <td class="text-orange">{{ item.display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% endif %}
+
   <div class="heatmap-30">
     <div class="hm-row">
       <span class="hm-title">30 derniers jours</span>
@@ -616,46 +652,6 @@
     <div class="heatmap-30-grid" id="heatmap-30-grid"></div>
   </div>
 </div>
-
-<!-- ② CTA DU JOUR — action principale -->
-{% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
-<div class="special-card fade-up delay-1">
-  <div class="special-icon">
-    {% if 'HIIT' in today %}🏃{% elif today == 'Yoga' %}🧘{% else %}☯️{% endif %}
-  </div>
-  <div class="special-name">{{ today }}</div>
-  <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 14px;">
-    {% if 'HIIT' in today %}Simulation shift hockey
-    {% elif today == 'Yoga' %}Mobilité & flexibilité — 45 min
-    {% else %}Récupération active — 30 min{% endif %}
-  </div>
-  <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
-    Commencer {{ today }} →
-  </a>
-</div>
-{% else %}
-{% if suggestions %}
-<div class="card mb-14 fade-up delay-1">
-  <div class="card-title">Poids recommandés — {{ today }}</div>
-  <table>
-    <thead><tr><th>Exercice</th><th>Recommandé</th></tr></thead>
-    <tbody>
-      {% for item in suggestions %}
-      <tr>
-        <td>{{ item.exercise }}</td>
-        <td class="text-orange">{{ item.display }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <a href="/seance" class="btn btn-primary btn-block mt-16">🏋️ Logger ma séance</a>
-</div>
-{% else %}
-<div class="fade-up delay-1" style="margin-bottom: 14px;">
-  <a href="/seance" class="btn btn-primary btn-block">🏋️ Logger ma séance</a>
-</div>
-{% endif %}
-{% endif %}
 
 <!-- ③ RÉCAP si déjà loggée aujourd'hui -->
 <div id="recap-section" style="display:none;" class="fade-up delay-2"></div>
