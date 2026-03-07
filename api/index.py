@@ -296,7 +296,7 @@ def intelligence():
         sessions  = load_sessions(),
         hiit_log  = load_hiit_log_local(),
         inventory = load_inventory(),
-        program   = db.get_json("program", {}),
+        program   = load_program(),
         now       = datetime.now().strftime("%Y-%m-%d"),
         week      = datetime.now().isocalendar()[1]
     )
