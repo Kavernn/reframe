@@ -5,6 +5,13 @@ from threading import Timer
 from datetime import datetime, date
 from pathlib import Path
 
+# Charge le .env pour le dev local (no-op sur Vercel)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / '.env')
+except ImportError:
+    pass
+
 # ✅ Ajoute /api au path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -721,8 +728,11 @@ def find_free_port(start=5000, end=5100):
 
 
 if __name__ == "__main__":
-    port = find_free_port()
+    # PORT stocké dans l'env pour que le child du reloader utilise le même
+    port = int(os.environ.setdefault("PORT", str(find_free_port())))
     url  = f"http://localhost:{port}"
     print(f"🚀 TrainingOS → {url}")
-    Timer(1.0, lambda: webbrowser.open(url)).start()
-    app.run(debug=True, use_reloader=False, host="0.0.0.0", port=port)
+    # N'ouvre le navigateur que dans le processus principal (pas le child du reloader)
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        Timer(1.0, lambda: webbrowser.open(url)).start()
+    app.run(debug=True, use_reloader=True, host="0.0.0.0", port=port)
