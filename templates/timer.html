@@ -822,13 +822,14 @@ function flash(ph) {
       setTimeout(() => ov.classList.remove('active'), 270);
     }, d);
   });
+  setTimeout(() => { ov.className = ''; }, 760 + 270 + 50);
 }
 
 function flashCountdown() {
   const ov = document.getElementById('flash-overlay');
   ov.className = 'flash-countdown';
   ov.classList.add('active');
-  setTimeout(() => ov.classList.remove('active'), 110);
+  setTimeout(() => { ov.classList.remove('active'); ov.className = ''; }, 110);
 }
 
 // ── UI UPDATE ─────────────────────────────────────────
