@@ -1253,18 +1253,21 @@ buildNextPR();
 
 // ── MARK COMPLETED WEEK DAYS ──────────────────────────
 (function markDoneDays() {
-  // Find the date for each day of the current week (Sun=0 … Sat=6)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const currentDow = today.getDay(); // 0=Sun
+
+  // Trouver le lundi de cette semaine (template DOW 0=Lun)
+  const jsDow = today.getDay(); // 0=Dim, 1=Lun, ..., 6=Sam
+  const daysSinceLundi = (jsDow + 6) % 7; // Dim→6, Lun→0, Mar→1 ...
+  const lundi = new Date(today);
+  lundi.setDate(today.getDate() - daysSinceLundi);
 
   document.querySelectorAll('#week-grid .week-day').forEach(el => {
-    if (el.classList.contains('today')) return; // already styled
-    const dow = parseInt(el.dataset.dow, 10); // 0-based from template
-    const diff = dow - currentDow;
-    const d = new Date(today);
-    d.setDate(today.getDate() + diff);
-    if (d > today) return; // future day — don't mark
+    if (el.classList.contains('today')) return;
+    const templateDow = parseInt(el.dataset.dow, 10); // 0=Lun … 6=Dim
+    const d = new Date(lundi);
+    d.setDate(lundi.getDate() + templateDow); // date exacte du jour dans la semaine
+    if (d > today) return; // futur — ne pas marquer
     const key = localDateStr(d);
     if (sessions[key]) el.classList.add('done');
   });
