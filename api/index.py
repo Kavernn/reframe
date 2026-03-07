@@ -254,12 +254,28 @@ def seance_speciale(session_type):
     else:
         protocole = {"rounds": 10, "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 25}
 
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    hiit_log   = load_hiit_log_local()
+
+    if session_type in ['HIIT 1', 'HIIT 2']:
+        previous_session = next(
+            (e for e in hiit_log if e.get("date") == today_date and e.get("session_type") == session_type),
+            None
+        )
+        already_logged = previous_session is not None
+    else:
+        sessions         = load_sessions()
+        already_logged   = today_date in sessions
+        previous_session = sessions.get(today_date)
+
     return render_template("seance_speciale.html",
                            session_type=session_type,
                            protocole=protocole,
                            week=week,
-                           hiit_log=load_hiit_log_local(),
-                           now=datetime.now().strftime("%Y-%m-%d")
+                           hiit_log=hiit_log,
+                           now=today_date,
+                           already_logged=already_logged,
+                           previous_session=previous_session,
                            )
 
 @app.route("/historique")
@@ -594,14 +610,24 @@ def api_log_session():
 
 @app.route("/api/log_hiit", methods=["POST"])
 def api_log_hiit():
-    data     = request.json
-    week     = get_current_week()
-    hiit_log = load_hiit_log_local()
+    data           = request.json
+    week           = get_current_week()
+    today          = data.get("date") or datetime.now().strftime("%Y-%m-%d")
+    session_type   = data.get("session_type", "HIIT")
+    second_session = data.get("second_session", False)
+    hiit_log       = load_hiit_log_local()
+
+    already_today = any(
+        e.get("date") == today and e.get("session_type") == session_type
+        for e in hiit_log
+    )
+    if already_today and not second_session:
+        return jsonify({"error": "already_logged"}), 409
 
     entry = {
-        "date":               data.get("date") or datetime.now().strftime("%Y-%m-%d"),
+        "date":               today,
         "week":               week,
-        "session_type":       data.get("session_type", "HIIT"),
+        "session_type":       session_type,
         "rounds_planifies":   data.get("rounds", 0),
         "rounds_completes":   data.get("rounds", 0),
         "vitesse_max":        data.get("speed"),
