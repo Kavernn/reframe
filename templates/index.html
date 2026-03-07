@@ -500,15 +500,97 @@
     .qnav-icon   { font-size: 1.2rem; }
     .qnav-lbl    { font-size: 0.5rem; }
   }
+
+  /* ── DAY DRAWER ── */
+  .day-drawer-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 900;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .day-drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+  .day-drawer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    max-height: 85vh;
+    background: #13131f;
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    z-index: 901;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+    overflow-y: auto;
+    padding: 0 18px 40px;
+  }
+  .day-drawer.open { transform: translateY(0); }
+
+  .drawer-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 12px auto 18px;
+  }
+  .drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .drawer-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.3rem; font-weight: 700;
+    color: var(--orange); text-transform: uppercase; letter-spacing: 1px;
+  }
+  .drawer-close {
+    background: rgba(255,255,255,0.07); border: none;
+    color: var(--muted); border-radius: 50%;
+    width: 30px; height: 30px; font-size: 1rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .drawer-section-title {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--muted); margin: 16px 0 8px;
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  }
+  .drawer-ex-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.85rem;
+  }
+  .drawer-ex-row:last-child { border-bottom: none; }
+  .drawer-ex-name { color: var(--text); }
+  .drawer-ex-sets { color: var(--orange); font-weight: 600; font-size: 0.8rem; }
+  .drawer-ex-last { color: var(--muted); font-size: 0.72rem; }
+
+  .drawer-past-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .drawer-past-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .drawer-past-date { font-size: 0.78rem; color: var(--muted); }
+  .drawer-past-rpe  { font-size: 0.72rem; font-weight: 600; color: var(--orange); }
+  .drawer-past-ex {
+    font-size: 0.75rem; color: var(--text); line-height: 1.6;
+  }
+  .drawer-no-past {
+    color: var(--muted); font-size: 0.8rem; text-align: center;
+    padding: 14px 0; font-style: italic;
+  }
+  .week-day { cursor: pointer; }
 </style>
 {% endblock %}
 
 {% block content %}
 
 <!-- Données JSON -->
-<script id="sessions-data" type="application/json">{{ sessions   | tojson }}</script>
+<script id="sessions-data" type="application/json">{{ sessions    | tojson }}</script>
 <script id="weights-data"  type="application/json">{{ suggestions | tojson }}</script>
-<script id="goals-data"    type="application/json">{{ goals      | tojson }}</script>
+<script id="goals-data"    type="application/json">{{ goals       | tojson }}</script>
+<script id="program-data"  type="application/json">{{ full_program | tojson }}</script>
+<script id="wfull-data"    type="application/json">{{ weights      | tojson }}</script>
 
 {% if deload_state.active %}
 <div class="alert alert-warning fade-up">
@@ -731,6 +813,17 @@
 <div class="card fade-up delay-6" id="insight-card" style="margin-top:14px;border-left:3px solid var(--orange);display:none;">
   <div class="card-title" style="margin-bottom:6px;">💡 Insight du jour</div>
   <div id="insight-text" style="font-size:0.88rem;color:var(--text);line-height:1.5;"></div>
+</div>
+
+<!-- ── DAY DRAWER ── -->
+<div class="day-drawer-overlay" id="drawer-overlay"></div>
+<div class="day-drawer" id="day-drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawer-title">—</div>
+    <button class="drawer-close" id="drawer-close">✕</button>
+  </div>
+  <div id="drawer-body"></div>
 </div>
 
 <!-- ── DERNIÈRE SÉANCE ── -->
@@ -988,6 +1081,134 @@ function buildNextPR() {
   `).join('');
 }
 buildNextPR();
+
+// ── DAY DRAWER ────────────────────────────────────────
+(function() {
+  const fullProgram = JSON.parse(document.getElementById('program-data').textContent || '{}');
+  const wfull       = JSON.parse(document.getElementById('wfull-data').textContent  || '{}');
+
+  const SPECIAL_INFO = {
+    'HIIT 1':   { icon: '🏃', desc: 'Simulation shift hockey — sprint 45s / repos 75s / 10 rounds' },
+    'HIIT 2':   { icon: '🏃', desc: 'Simulation shift hockey — sprint 45s / repos 75s / 10 rounds' },
+    'Yoga':     { icon: '🧘', desc: 'Mobilité & flexibilité — 45 min' },
+    'Recovery': { icon: '☯️', desc: 'Récupération active — 30 min' },
+  };
+
+  // templateDow (0=Lun … 6=Dim) → JS Date.getDay() (0=Sun … 6=Sat)
+  function templateDowToJsDay(tdow) { return (tdow + 1) % 7; }
+
+  function getLastWeight(exName) {
+    const hist = (wfull[exName] || {}).history || [];
+    if (!hist.length) return null;
+    const last = hist.slice().sort((a,b) => b.date.localeCompare(a.date))[0];
+    return last;
+  }
+
+  function getPastSessions(templateDow, limit = 3) {
+    const jsDay = templateDowToJsDay(templateDow);
+    return Object.entries(sessions)
+      .filter(([date]) => {
+        const d = new Date(date + 'T12:00:00');
+        return d.getDay() === jsDay;
+      })
+      .sort(([a], [b]) => b.localeCompare(a))
+      .slice(0, limit);
+  }
+
+  function getExercisesOnDate(date) {
+    // Collect all exercises logged on that date from weights history
+    const result = [];
+    for (const [ex, data] of Object.entries(wfull)) {
+      const entry = (data.history || []).find(e => e.date === date);
+      if (entry) result.push({ ex, entry });
+    }
+    return result;
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+
+  function buildDrawerContent(seance, templateDow) {
+    const isMuscu = ['Upper A', 'Upper B', 'Lower'].includes(seance);
+    const isSpecial = SPECIAL_INFO[seance];
+    let html = '';
+
+    // ── Programme ──
+    if (isMuscu && fullProgram[seance]) {
+      html += `<div class="drawer-section-title">📋 Programme</div>`;
+      for (const [ex, sets] of Object.entries(fullProgram[seance])) {
+        const last = getLastWeight(ex);
+        const lastStr = last ? `${last.weight} lbs · ${last.reps} reps` : '';
+        html += `
+          <div class="drawer-ex-row">
+            <span class="drawer-ex-name">${ex}</span>
+            <span>
+              <span class="drawer-ex-sets">${sets}</span>
+              ${lastStr ? `<br><span class="drawer-ex-last">${lastStr}</span>` : ''}
+            </span>
+          </div>`;
+      }
+    } else if (isSpecial) {
+      html += `<div style="text-align:center;font-size:2rem;margin:12px 0;">${isSpecial.icon}</div>`;
+      html += `<div style="color:var(--muted);font-size:0.88rem;text-align:center;margin-bottom:8px;">${isSpecial.desc}</div>`;
+    }
+
+    // ── Dernières séances similaires ──
+    html += `<div class="drawer-section-title">🕐 Dernières séances similaires</div>`;
+    const past = getPastSessions(templateDow);
+    if (!past.length) {
+      html += `<div class="drawer-no-past">Aucune séance passée à ce jour</div>`;
+    } else {
+      for (const [date, sess] of past) {
+        const rpe    = sess.rpe  ? `RPE ${sess.rpe}` : '';
+        const exos   = getExercisesOnDate(date);
+        const exRows = exos.map(({ex, entry}) => {
+          const repsStr = Array.isArray(entry.reps) ? entry.reps.join(', ') : entry.reps;
+          return `<span style="color:var(--orange)">${ex}</span> ${entry.weight} lbs · ${repsStr} reps`;
+        }).join('<br>');
+
+        html += `
+          <div class="drawer-past-card">
+            <div class="drawer-past-header">
+              <span class="drawer-past-date">${formatDate(date)}</span>
+              ${rpe ? `<span class="drawer-past-rpe">${rpe}</span>` : ''}
+            </div>
+            <div class="drawer-past-ex">${exRows || '<span style="color:var(--muted);font-style:italic">Aucun détail</span>'}</div>
+          </div>`;
+      }
+    }
+    return html;
+  }
+
+  function openDrawer(seance, jour, templateDow) {
+    document.getElementById('drawer-title').textContent = `${seance} · ${jour}`;
+    document.getElementById('drawer-body').innerHTML = buildDrawerContent(seance, templateDow);
+    document.getElementById('day-drawer').classList.add('open');
+    document.getElementById('drawer-overlay').classList.add('open');
+  }
+
+  function closeDrawer() {
+    document.getElementById('day-drawer').classList.remove('open');
+    document.getElementById('drawer-overlay').classList.remove('open');
+  }
+
+  document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+  document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+  // Intercept week-day clicks
+  document.querySelectorAll('#week-grid a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const day = link.querySelector('.week-day');
+      const seance = day.dataset.seance;
+      const jour   = day.dataset.jour;
+      const dow    = parseInt(day.dataset.dow, 10);
+      openDrawer(seance, jour, dow);
+    });
+  });
+})();
 
 // ── MARK COMPLETED WEEK DAYS ──────────────────────────
 (function markDoneDays() {
