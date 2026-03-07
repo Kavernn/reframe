@@ -331,6 +331,7 @@ def planificateur():
         sessions     = load_sessions(),
         hiit_log     = load_hiit_log_local(),
         full_program = load_program(),
+        schedule     = get_week_schedule(),
         now          = datetime.now().strftime("%Y-%m-%d"),
         week         = datetime.now().isocalendar()[1]
     )
@@ -791,6 +792,50 @@ def api_delete_body_weight():
             return jsonify({"success": False, "error": "Entrée introuvable"}), 404
         set_json("body_weight", new_entries)
         return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ai/propose", methods=["POST"])
+def api_ai_propose():
+    """Claude returns structured program modification proposals as JSON."""
+    import os, json as _json
+    import anthropic as _anthropic
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY manquant"}), 500
+    try:
+        data    = request.get_json()
+        context = data.get("context", "")
+        if not context:
+            return jsonify({"error": "Contexte manquant"}), 400
+
+        client  = _anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            system=(
+                "Tu es un coach expert en programmation musculaire. "
+                "Tu reçois des données d'entraînement et tu proposes des modifications concrètes au programme. "
+                "Tu DOIS répondre UNIQUEMENT avec un tableau JSON valide, sans texte avant ni après. "
+                "Format exact de chaque proposition:\n"
+                '{"jour": "Nom du jour/session", "action": "add|remove|replace|scheme", '
+                '"exercise": "nom (pour add)", "old_exercise": "nom (pour remove/replace)", '
+                '"new_exercise": "nom (pour replace)", "scheme": "ex: 3x8-10", '
+                '"reason": "explication courte en français"}\n'
+                "Propose 3 à 6 modifications pertinentes basées sur les données. "
+                "Ne compare jamais le volume brut entre muscles — utilise les sets."
+            ),
+            messages=[{"role": "user", "content": context}]
+        )
+        raw = message.content[0].text.strip()
+        # Extract JSON array from response
+        start = raw.find('[')
+        end   = raw.rfind(']') + 1
+        if start == -1 or end == 0:
+            return jsonify({"error": "Réponse non structurée", "raw": raw}), 500
+        proposals = _json.loads(raw[start:end])
+        return jsonify({"proposals": proposals})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
