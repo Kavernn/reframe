@@ -991,10 +991,13 @@ function toggleTimer() {
     clearInterval(interval); interval = null; running = false;
     releaseWakeLock(); setPlayBtn(false);
   } else {
+    // Initialise l'AudioContext pendant ce geste utilisateur
+    // pour que les beeps 3,2,1 (déclenchés par setInterval) fonctionnent
+    getCtx();
     if (phase === 'idle' || phase === 'done') {
       currentRound = 1;
       startPhase(prepareOn ? 'prepare' : 'work');
-      // No flash on start — only at phase transitions
+      // Pas de flash au démarrage — uniquement aux transitions de phase
     } else {
       phaseStartEpoch = Date.now() - (currentPhaseLen() - pausedAtRemaining) * 1000;
     }
@@ -1068,8 +1071,10 @@ function applyPreset(work, rest, rounds, btn) {
 }
 
 function jumpToPhase(ph) {
+  const alreadyActive = running || (phase !== 'idle' && phase !== 'done');
   clearInterval(interval);
-  flash(ph); playSound(ph); startPhase(ph);
+  if (alreadyActive) flash(ph); // flash seulement si on switche en cours de session
+  playSound(ph); startPhase(ph);
   running  = true;
   interval = setInterval(tick, 250);
   requestWakeLock(); setPlayBtn(true); updateCardHighlight();
