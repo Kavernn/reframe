@@ -653,14 +653,15 @@
 <!-- ── PLANNING SEMAINE ── -->
 <div class="card mb-14 fade-up delay-4">
   <div class="card-title">Planning</div>
-  <div class="week-grid">
+  <div class="week-grid" id="week-grid">
     {% for jour, seance in schedule.items() %}
     {% if seance in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
     <a href="/seance_speciale/{{ seance }}" style="text-decoration:none;">
     {% else %}
     <a href="/programme" style="text-decoration:none;">
     {% endif %}
-      <div class="week-day {% if seance == today %}today{% endif %}" data-jour="{{ jour }}" data-seance="{{ seance }}">
+      <div class="week-day {% if seance == today %}today{% endif %}"
+           data-jour="{{ jour }}" data-seance="{{ seance }}" data-dow="{{ loop.index0 }}">
         <div class="wd-label">{{ jour[:3] }}</div>
         <div class="wd-name">{{ seance[:6] if seance else '—' }}</div>
       </div>
@@ -749,7 +750,18 @@
 const sessions   = JSON.parse(document.getElementById('sessions-data').textContent);
 const goals      = JSON.parse(document.getElementById('goals-data').textContent);
 const TODAY      = '{{ today }}';
-const todayStr   = new Date().toISOString().split('T')[0];
+
+// Use local calendar date, not UTC — toISOString() returns UTC which causes
+// off-by-one day errors for users in UTC+ timezones after midnight UTC.
+function localDateStr(d) {
+  const dd = d || new Date();
+  const y  = dd.getFullYear();
+  const m  = String(dd.getMonth() + 1).padStart(2, '0');
+  const day = String(dd.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const todayStr = localDateStr();
 
 // ── HERO DATE ─────────────────────────────────────────
 document.getElementById('hero-date').textContent =
@@ -783,7 +795,7 @@ function getQuote() {
   // Cherche le RPE d'hier
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yKey = yesterday.toISOString().split('T')[0];
+  const yKey = localDateStr(yesterday);
   const rpe  = sessions[yKey]?.rpe || 0;
 
   let pool;
@@ -807,7 +819,7 @@ function buildHeatmap30() {
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key   = d.toISOString().split('T')[0];
+    const key   = localDateStr(d);
     const hasSession = !!sessions[key];
 
     const cell = document.createElement('div');
@@ -829,7 +841,7 @@ function buildHeatmap30() {
   for (let i = 0; i <= 29; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = localDateStr(d);
     if (sessions[key]) streak++;
     else break;
   }
@@ -892,7 +904,7 @@ function getWeekStart(weeksAgo = 0) {
   const d = new Date();
   d.setHours(0,0,0,0);
   d.setDate(d.getDate() - d.getDay() - weeksAgo * 7);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d); // use local date, not UTC
 }
 
 function computeWeekKPIs(weeksAgo = 0) {
@@ -976,6 +988,25 @@ function buildNextPR() {
   `).join('');
 }
 buildNextPR();
+
+// ── MARK COMPLETED WEEK DAYS ──────────────────────────
+(function markDoneDays() {
+  // Find the date for each day of the current week (Sun=0 … Sat=6)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const currentDow = today.getDay(); // 0=Sun
+
+  document.querySelectorAll('#week-grid .week-day').forEach(el => {
+    if (el.classList.contains('today')) return; // already styled
+    const dow = parseInt(el.dataset.dow, 10); // 0-based from template
+    const diff = dow - currentDow;
+    const d = new Date(today);
+    d.setDate(today.getDate() + diff);
+    if (d > today) return; // future day — don't mark
+    const key = localDateStr(d);
+    if (sessions[key]) el.classList.add('done');
+  });
+})();
 
 </script>
 {% endblock %}

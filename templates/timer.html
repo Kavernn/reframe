@@ -551,16 +551,20 @@
 
 <script>
 // ── STATE ─────────────────────────────────────────────
-let workSecs   = 40;
-let autoStart  = false; // Enchaîne work→rest→work sans pause
-let restSecs   = 20;
+let workSecs    = 40;
+let autoStart   = false; // Enchaîne work→rest→work sans pause
+let restSecs    = 20;
 let totalRounds = 8;
 
-let currentRound = 1;
-let phase        = 'idle'; // 'work' | 'rest' | 'idle' | 'done'
-let remaining    = 0;
-let interval     = null;
-let running      = false;
+let currentRound      = 1;
+let phase             = 'idle'; // 'work' | 'rest' | 'idle' | 'done'
+let remaining         = 0;
+let interval          = null;
+let running           = false;
+// Wall-clock state — source of truth for elapsed time
+let phaseStartEpoch   = null; // Date.now() when current phase started (ms)
+let pausedAtRemaining = 0;    // remaining seconds when paused
+let lastBeepAt        = -1;   // prevents double-beep on same second
 
 // ── UTILS ─────────────────────────────────────────────
 function fmt(s) {
@@ -682,8 +686,10 @@ function flash(ph) {
 
 // ── TIMER LOGIC ───────────────────────────────────────
 function startPhase(ph) {
-  phase     = ph;
-  remaining = ph === 'work' ? workSecs : restSecs;
+  phase            = ph;
+  remaining        = ph === 'work' ? workSecs : restSecs;
+  phaseStartEpoch  = Date.now();
+  lastBeepAt       = -1;
   updateUI();
 }
 
@@ -735,9 +741,18 @@ function finishRest() {
 }
 
 function tick() {
-  remaining--;
-  // Countdown beeps à 3, 2, 1 pendant WORK
-  if (phase === 'work' && remaining <= 3 && remaining > 0) beepCountdown();
+  if (!running || phaseStartEpoch === null) return;
+  // Use wall-clock as source of truth to prevent drift
+  const phaseLen = phase === 'work' ? workSecs : restSecs;
+  const elapsed  = Math.floor((Date.now() - phaseStartEpoch) / 1000);
+  remaining      = Math.max(0, phaseLen - elapsed);
+
+  // Countdown beeps at 3, 2, 1 during WORK — deduplicated per second
+  if (phase === 'work' && remaining <= 3 && remaining > 0 && remaining !== lastBeepAt) {
+    beepCountdown();
+    lastBeepAt = remaining;
+  }
+
   if (remaining <= 0) {
     if (phase === 'work') finishWork();
     else finishRest();
@@ -749,6 +764,9 @@ function tick() {
 function toggleTimer() {
   const btn = document.getElementById('btn-play');
   if (running) {
+    // Pause — save remaining so we can resume from exact position
+    pausedAtRemaining = remaining;
+    phaseStartEpoch   = null;
     clearInterval(interval);
     interval = null;
     running  = false;
@@ -759,6 +777,10 @@ function toggleTimer() {
       currentRound = 1;
       startPhase('work');
       flash('work');
+    } else {
+      // Resuming from pause — reconstruct epoch so remaining stays correct
+      const phaseLen  = phase === 'work' ? workSecs : restSecs;
+      phaseStartEpoch = Date.now() - (phaseLen - pausedAtRemaining) * 1000;
     }
     running  = true;
     interval = setInterval(tick, 1000);
@@ -769,11 +791,14 @@ function toggleTimer() {
 
 function resetTimer() {
   clearInterval(interval);
-  interval     = null;
-  running      = false;
-  phase        = 'idle';
-  currentRound = 1;
-  remaining    = workSecs;
+  interval          = null;
+  running           = false;
+  phase             = 'idle';
+  currentRound      = 1;
+  remaining         = workSecs;
+  phaseStartEpoch   = null;
+  pausedAtRemaining = 0;
+  lastBeepAt        = -1;
   document.getElementById('btn-play').innerHTML = '▶';
   document.getElementById('btn-play').classList.remove('running');
   updateUI();
@@ -841,23 +866,23 @@ function applyPreset(work, rest, rounds, btn) {
 function jumpToPhase(ph) {
   // Si timer en cours → switch de phase immédiatement
   // Si timer arrêté → démarre directement cette phase
-  if (running) {
-    clearInterval(interval);
-    if (ph === 'rest') flash('rest');
-    else flash('work');
-    startPhase(ph);
-    interval = setInterval(tick, 1000);
-  } else {
-    phase = 'idle';
-    startPhase(ph);
-    flash(ph);
-    running  = true;
-    interval = setInterval(tick, 1000);
-    document.getElementById('btn-play').innerHTML = '⏸';
-    document.getElementById('btn-play').classList.add('running');
-  }
+  clearInterval(interval);
+  if (ph === 'rest') flash('rest');
+  else flash('work');
+  startPhase(ph); // sets phaseStartEpoch = Date.now()
+  running  = true;
+  interval = setInterval(tick, 1000);
+  document.getElementById('btn-play').innerHTML = '⏸';
+  document.getElementById('btn-play').classList.add('running');
   updateCardHighlight();
 }
+
+// ── PAGE VISIBILITY — resync on tab focus ─────────────
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && running && phaseStartEpoch !== null) {
+    tick(); // Immediately recalculate from wall clock when tab becomes visible
+  }
+});
 
 function updateCardHighlight() {
   document.getElementById('card-work').classList.toggle('phase-active', phase === 'work');
