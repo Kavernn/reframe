@@ -599,7 +599,7 @@
 </div>
 {% endif %}
 
-<!-- ── HERO BANNER ── -->
+<!-- ① HERO — date + streak compact -->
 <div class="hero-banner fade-up">
   <div class="hero-top">
     <div>
@@ -608,8 +608,6 @@
     </div>
     <span class="hero-week">Sem. {{ week }}</span>
   </div>
-
-  <!-- Mini heatmap 30 jours -->
   <div class="heatmap-30">
     <div class="hm-row">
       <span class="hm-title">30 derniers jours</span>
@@ -619,25 +617,76 @@
   </div>
 </div>
 
-<!-- ── QUOTE DU JOUR ── -->
-<div class="quote-strip fade-up delay-1" id="quote-strip">
-  <div class="quote-text" id="quote-text">...</div>
-  <div class="quote-author" id="quote-author"></div>
+<!-- ② CTA DU JOUR — action principale -->
+{% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
+<div class="special-card fade-up delay-1">
+  <div class="special-icon">
+    {% if 'HIIT' in today %}🏃{% elif today == 'Yoga' %}🧘{% else %}☯️{% endif %}
+  </div>
+  <div class="special-name">{{ today }}</div>
+  <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 14px;">
+    {% if 'HIIT' in today %}Simulation shift hockey
+    {% elif today == 'Yoga' %}Mobilité & flexibilité — 45 min
+    {% else %}Récupération active — 30 min{% endif %}
+  </div>
+  <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
+    Commencer {{ today }} →
+  </a>
 </div>
+{% else %}
+{% if suggestions %}
+<div class="card mb-14 fade-up delay-1">
+  <div class="card-title">Poids recommandés — {{ today }}</div>
+  <table>
+    <thead><tr><th>Exercice</th><th>Recommandé</th></tr></thead>
+    <tbody>
+      {% for item in suggestions %}
+      <tr>
+        <td>{{ item.exercise }}</td>
+        <td class="text-orange">{{ item.display }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <a href="/seance" class="btn btn-primary btn-block mt-16">🏋️ Logger ma séance</a>
+</div>
+{% else %}
+<div class="fade-up delay-1" style="margin-bottom: 14px;">
+  <a href="/seance" class="btn btn-primary btn-block">🏋️ Logger ma séance</a>
+</div>
+{% endif %}
+{% endif %}
 
-<!-- ── RÉCAP SÉANCE LOGGÉE (si déjà fait) ── -->
+<!-- ③ RÉCAP si déjà loggée aujourd'hui -->
 <div id="recap-section" style="display:none;" class="fade-up delay-2"></div>
 
-<!-- ── ANNEAU + KPIs SEMAINE ── -->
+<!-- ④ PLANNING SEMAINE -->
 <div class="card mb-14 fade-up delay-2">
+  <div class="card-title">Planning semaine</div>
+  <div class="week-grid" id="week-grid">
+    {% for jour, seance in schedule.items() %}
+    {% if seance in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
+    <a href="/seance_speciale/{{ seance }}" style="text-decoration:none;">
+    {% else %}
+    <a href="/programme" style="text-decoration:none;">
+    {% endif %}
+      <div class="week-day {% if seance == today %}today{% endif %}"
+           data-jour="{{ jour }}" data-seance="{{ seance }}" data-dow="{{ loop.index0 }}">
+        <div class="wd-label">{{ jour[:3] }}</div>
+        <div class="wd-name">{{ seance[:6] if seance else '—' }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ⑤ KPIs SEMAINE -->
+<div class="card mb-14 fade-up delay-3">
   <div class="card-title" style="margin-bottom: 12px;">Cette semaine</div>
   <div class="rings-row">
-    <!-- Anneau principal -->
     <div class="ring-wrap">
       <svg width="80" height="80" viewBox="0 0 80 80">
-        <!-- Track -->
         <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
-        <!-- Fill -->
         <circle cx="40" cy="40" r="34" fill="none"
           stroke="url(#ringGrad)" stroke-width="7"
           stroke-linecap="round"
@@ -657,7 +706,6 @@
         <div class="ring-lbl">séances</div>
       </div>
     </div>
-    <!-- Stats à droite -->
     <div class="rings-stats">
       <div class="ring-stat">
         <div class="ring-stat-val" id="kpi-streak">—</div>
@@ -679,83 +727,15 @@
   </div>
 </div>
 
-<!-- ── SÉANCE DU JOUR ── -->
-{% if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
-<div class="special-card fade-up delay-3">
-  <div class="special-icon">
-    {% if 'HIIT' in today %}🏃{% elif today == 'Yoga' %}🧘{% else %}☯️{% endif %}
-  </div>
-  <div class="special-name">{{ today }}</div>
-  <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 14px;">
-    {% if 'HIIT' in today %}Simulation shift hockey
-    {% elif today == 'Yoga' %}Mobilité & flexibilité — 45 min
-    {% else %}Récupération active — 30 min{% endif %}
-  </div>
-  <a href="/seance_speciale/{{ today }}" class="btn btn-primary btn-block">
-    Commencer {{ today }} →
-  </a>
-</div>
-
-{% else %}
-<!-- Suggestions poids -->
-{% if suggestions %}
-<div class="card mb-14 fade-up delay-3">
-  <div class="card-title">Poids recommandés aujourd'hui</div>
-  <table>
-    <thead>
-      <tr><th>Exercice</th><th>Recommandé</th></tr>
-    </thead>
-    <tbody>
-      {% for item in suggestions %}
-      <tr>
-        <td>{{ item.exercise }}</td>
-        <td class="text-orange">{{ item.display }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <a href="/seance" class="btn btn-primary btn-block mt-16">
-    🏋️ Logger ma séance
-  </a>
-</div>
-{% else %}
-<div class="fade-up delay-3" style="margin-bottom: 14px;">
-  <a href="/seance" class="btn btn-primary btn-block">
-    🏋️ Logger ma séance
-  </a>
-</div>
-{% endif %}
-{% endif %}
-
-<!-- ── PROCHAIN PR ── -->
-<div class="pr-card fade-up delay-4" id="pr-section" style="display:none;">
+<!-- ⑥ PROCHAIN PR -->
+<div class="pr-card fade-up delay-3" id="pr-section" style="display:none;">
   <div class="pr-title">🏆 Prochains PRs</div>
   <div id="pr-list"></div>
 </div>
 
-<!-- ── PLANNING SEMAINE ── -->
-<div class="card mb-14 fade-up delay-4">
-  <div class="card-title">Planning</div>
-  <div class="week-grid" id="week-grid">
-    {% for jour, seance in schedule.items() %}
-    {% if seance in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery'] %}
-    <a href="/seance_speciale/{{ seance }}" style="text-decoration:none;">
-    {% else %}
-    <a href="/programme" style="text-decoration:none;">
-    {% endif %}
-      <div class="week-day {% if seance == today %}today{% endif %}"
-           data-jour="{{ jour }}" data-seance="{{ seance }}" data-dow="{{ loop.index0 }}">
-        <div class="wd-label">{{ jour[:3] }}</div>
-        <div class="wd-name">{{ seance[:6] if seance else '—' }}</div>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-</div>
-
-<!-- ── OBJECTIFS ── -->
+<!-- ⑦ OBJECTIFS -->
 {% if goals %}
-<div class="card mb-14 fade-up delay-5">
+<div class="card mb-14 fade-up delay-4">
   <div class="card-title">🎯 Objectifs</div>
   {% for ex, g in goals.items() %}
   {% if not g.achieved %}
@@ -774,8 +754,8 @@
 </div>
 {% endif %}
 
-<!-- ── NAVIGATION RAPIDE ── -->
-<div class="quick-nav fade-up delay-6">
+<!-- ⑧ NAVIGATION RAPIDE -->
+<div class="quick-nav fade-up delay-4">
   <a href="/stats" class="qnav-item">
     <span class="qnav-icon">📊</span>
     <span class="qnav-lbl">Stats</span>
@@ -810,13 +790,28 @@
   </a>
 </div>
 
-<!-- ── INSIGHT DU JOUR ── -->
-<div class="card fade-up delay-6" id="insight-card" style="margin-top:14px;border-left:3px solid var(--orange);display:none;">
+<!-- ⑨ DERNIÈRE SÉANCE -->
+<div class="card fade-up delay-5" id="last-session-card" style="margin-top:14px;display:none;">
+  <div class="flex-between mb-8">
+    <div class="card-title" style="margin:0;">🕐 Dernière séance</div>
+    <span id="last-session-date" style="font-size:0.75rem;color:var(--muted);"></span>
+  </div>
+  <div id="last-session-list" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+  <a href="/historique" style="display:block;text-align:center;margin-top:10px;font-size:0.78rem;color:var(--muted);">Voir tout l'historique →</a>
+</div>
+
+<!-- ⑩ INSIGHT + QUOTE (bas de page) -->
+<div class="card fade-up delay-5" id="insight-card" style="margin-top:14px;border-left:3px solid var(--orange);display:none;">
   <div class="card-title" style="margin-bottom:6px;">💡 Insight du jour</div>
   <div id="insight-text" style="font-size:0.88rem;color:var(--text);line-height:1.5;"></div>
 </div>
 
-<!-- ── DAY DRAWER ── -->
+<div class="quote-strip fade-up delay-6" id="quote-strip" style="margin-top:14px;">
+  <div class="quote-text" id="quote-text">...</div>
+  <div class="quote-author" id="quote-author"></div>
+</div>
+
+<!-- DAY DRAWER (fixed, hors flow) -->
 <div class="day-drawer-overlay" id="drawer-overlay"></div>
 <div class="day-drawer" id="day-drawer">
   <div class="drawer-handle"></div>
@@ -825,16 +820,6 @@
     <button class="drawer-close" id="drawer-close">✕</button>
   </div>
   <div id="drawer-body"></div>
-</div>
-
-<!-- ── DERNIÈRE SÉANCE ── -->
-<div class="card fade-up delay-6" id="last-session-card" style="margin-top:14px;display:none;">
-  <div class="flex-between mb-8">
-    <div class="card-title" style="margin:0;">🕐 Dernière séance</div>
-    <span id="last-session-date" style="font-size:0.75rem;color:var(--muted);"></span>
-  </div>
-  <div id="last-session-list" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
-  <a href="/historique" style="display:block;text-align:center;margin-top:10px;font-size:0.78rem;color:var(--muted);">Voir tout l'historique →</a>
 </div>
 
 {% endblock %}
