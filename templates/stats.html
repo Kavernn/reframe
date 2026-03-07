@@ -1414,8 +1414,6 @@ function buildMuscleEvol() {
 }
 // ── COMPARAISON SEMAINE VS SEMAINE ────────────────────
 
-const inventory = JSON.parse(document.getElementById('inventory-data')?.textContent || '{}');
-
 function getWeekRange(weeksAgo) {
   const from = new Date();
   from.setHours(0,0,0,0);
