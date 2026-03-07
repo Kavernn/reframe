@@ -48,6 +48,7 @@
     padding: 20px;
     margin-bottom: 16px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    overflow: hidden;
   }
 
   .chart-card h3 {
@@ -57,6 +58,8 @@
     letter-spacing: 1px;
     margin-bottom: 16px;
   }
+
+  canvas { max-width: 100%; }
 
   .section-label {
     font-size: 0.7rem;
@@ -201,6 +204,13 @@
 @media (max-width: 520px) {
   .kpi-top { grid-template-columns: repeat(2, 1fr); }
   .muscle-charts-grid { grid-template-columns: 1fr !important; }
+  .heatmap-stats { grid-template-columns: repeat(2, 1fr); }
+  .chart-card { padding: 14px 12px; }
+  .chart-card h3 { font-size: 0.78rem; margin-bottom: 12px; }
+  .pr-col-hide { display: none !important; }
+  .pr-row { grid-template-columns: 1fr 80px 36px; gap: 6px; }
+  .comp-kpis-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .section-label { font-size: 0.65rem; }
 }
 
 .no-data {
@@ -359,7 +369,7 @@
 <!-- NOUVEAU : Scatter RPE vs Volume -->
 <div class="chart-card">
   <h3>🔬 Corrélation RPE vs Volume par séance</h3>
-  <canvas id="rpeVsVolume" height="200"></canvas>
+  <canvas id="rpeVsVolume" height="160"></canvas>
 </div>
 
 <!-- ANALYSE MUSCULAIRE -->
@@ -393,8 +403,8 @@
     <button class="muscle-filter" onclick="setCompWeek(2, this)">S-2</button>
     <button class="muscle-filter" onclick="setCompWeek(4, this)">S-4</button>
   </div>
-  <div id="comp-kpis" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;"></div>
-  <canvas id="compRadar" height="260"></canvas>
+  <div id="comp-kpis" class="comp-kpis-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;"></div>
+  <canvas id="compRadar" height="220"></canvas>
 </div>
 
 <div class="chart-card">
@@ -552,14 +562,14 @@
       <div class="pr-row pr-row-header">
         <span>Exercice</span>
         <span style="text-align:right;">Meilleur 1RM</span>
-        <span style="text-align:right;">Actuel</span>
+        <span class="pr-col-hide" style="text-align:right;">Actuel</span>
         <span style="text-align:center;">↕</span>
       </div>
       ${prs.slice(0, 12).map((p, i) => `
         <div class="pr-row">
           <span style="font-weight:600;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i===0?'🥇 ':''}${p.ex}</span>
           <span style="text-align:right;color:var(--orange);font-family:'Barlow Condensed';font-weight:700;font-size:1rem;">${p.bestORM} lbs</span>
-          <span style="text-align:right;color:var(--muted);font-size:0.82rem;">${p.currentORM} lbs</span>
+          <span class="pr-col-hide" style="text-align:right;color:var(--muted);font-size:0.82rem;">${p.currentORM} lbs</span>
           <span class="${p.trendCls}" style="text-align:center;font-size:1rem;font-weight:700;">${p.trend}</span>
         </div>
       `).join('')}
@@ -1547,7 +1557,7 @@ function buildComparison(weeksAgo) {
         r: {
           ticks:       { display: false },
           grid:        { color: '#2a2a3a' },
-          pointLabels: { color: '#999', font: { size: 10 } },
+          pointLabels: { color: '#999', font: { size: window.innerWidth < 520 ? 8 : 10 } },
           angleLines:  { color: '#2a2a3a' }
         }
       }
