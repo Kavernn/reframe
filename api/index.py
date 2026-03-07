@@ -652,39 +652,33 @@ def api_delete_body_weight():
 
 @app.route("/api/ai/coach", methods=["POST"])
 def api_ai_coach():
-    import os, requests as req
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    import os
+    import anthropic as _anthropic
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
-        return jsonify({"error": "OPENROUTER_API_KEY manquant dans .env"}), 500
+        return jsonify({"error": "ANTHROPIC_API_KEY manquant dans .env"}), 500
     try:
         data   = request.get_json()
         prompt = data.get("prompt", "")
         if not prompt:
             return jsonify({"error": "Prompt vide"}), 400
 
-        res = req.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://trainingos.app",
-                "X-Title": "TrainingOS"
-            },
-            json={
-                "model": "mistralai/mistral-7b-instruct",
-                "messages": [
-                    {"role": "system", "content": "Tu es un coach sportif expert en musculation et HIIT. Tu analyses les données d'entraînement et donnes des conseils précis, motivants et actionnables. Tu réponds toujours en français, de façon concise (max 6 phrases)."},
-                    {"role": "user", "content": prompt}
-                ],
-                "max_tokens": 400,
-                "temperature": 0.7
-            },
-            timeout=20
+        client = _anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=600,
+            system=(
+                "Tu es un coach sportif expert en musculation, HIIT et périodisation. "
+                "Tu analyses les données d'entraînement réelles de l'utilisateur et donnes des conseils "
+                "précis, motivants et actionnables. Tu réponds toujours en français, de façon concise "
+                "(max 6 phrases). Sois direct, pratique et encourageant. "
+                "Utilise les données fournies pour personnaliser tes réponses."
+            ),
+            messages=[{"role": "user", "content": prompt}]
         )
-        result = res.json()
-        if "choices" in result:
-            return jsonify({"response": result["choices"][0]["message"]["content"]})
-        return jsonify({"error": result.get("error", {}).get("message", "Erreur API")}), 500
+        return jsonify({"response": message.content[0].text})
+    except _anthropic.AuthenticationError:
+        return jsonify({"error": "Clé ANTHROPIC_API_KEY invalide"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

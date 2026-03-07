@@ -126,18 +126,19 @@
   <div id="muscle-map" class="muscle-map"></div>
 </div>
 
-<!-- IA OPENROUTER -->
-<div class="section-title fu fu3">🤖 Analyse IA (OpenRouter)</div>
+<!-- IA CLAUDE -->
+<div class="section-title fu fu3">🤖 Coach IA — Claude</div>
 
 <div class="ai-section fu fu3">
   <div class="ai-title">
-    <span>💬</span> Coaching personnalisé
+    <span>💬</span> Coaching personnalisé par Claude
   </div>
-  <div class="ai-response loading pulsing" id="ai-coach">Clique pour générer une analyse...</div>
+  <div class="ai-response loading pulsing" id="ai-coach">Clique sur un bouton pour obtenir une analyse personnalisée...</div>
   <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-    <button class="btn-ai" id="btn-analyse" onclick="runAI('analyse')">📊 Analyser mes données</button>
+    <button class="btn-ai" onclick="runAI('analyse')">📊 Analyser mes données</button>
     <button class="btn-ai" onclick="runAI('fatigue')">😴 Évaluer ma fatigue</button>
-    <button class="btn-ai" onclick="runAI('suggestion')">🎯 Suggérer ma prochaine séance</button>
+    <button class="btn-ai" onclick="runAI('suggestion')">🎯 Prochaine séance</button>
+    <button class="btn-ai" onclick="runAI('progression')">📈 Ma progression</button>
   </div>
 </div>
 
@@ -275,35 +276,84 @@ function renderMuscleMap(){
   }).join('');
 }
 
-// ── AI OPENROUTER ─────────────────────────────────────
-async function runAI(mode){
-  const el=document.getElementById('ai-coach');
-  const btn=document.getElementById('btn-analyse');
-  el.className='ai-response loading pulsing';
-  el.textContent='Analyse en cours...';
-  document.querySelectorAll('.btn-ai').forEach(b=>b.disabled=true);
-
-  // Prépare le contexte condensé
+// ── AI CLAUDE ─────────────────────────────────────────
+function buildAIContext(){
   const freq7=sessionFreq(7);
-  const rpe7=avgRPE(7).toFixed(1);
+  const freq14=sessionFreq(14);
+  const rpe7=avgRPE(7);
   const vol7=volumeByMuscle(7);
+
+  // Top PRs (1RM estimé Epley)
   const prs=Object.entries(W).map(([ex,d])=>{
     let best=0;
     (d.history||[]).forEach(e=>{
       const r=parseReps(e.reps),w=e.weight||0;
       if(!r.length||!w) return;
-      const orm=w*(1+r.reduce((a,b)=>a+b,0)/r.length/30);
+      const avg=r.reduce((a,b)=>a+b,0)/r.length;
+      const orm=w*(1+avg/30);
       if(orm>best) best=orm;
     });
-    return best>0?`${ex}:${Math.round(best)}lbs`:null;
-  }).filter(Boolean).slice(0,5).join(', ');
+    return best>0?`${ex}: ~${Math.round(best)} lbs 1RM`:null;
+  }).filter(Boolean).slice(0,6);
 
-  const ctx=`Athlète TrainingOS. Cette semaine: ${freq7} séances, RPE moyen ${rpe7}/10. Volume par muscle: ${JSON.stringify(vol7)}. Top PRs (1RM estimé): ${prs||'aucun encore'}. Séances HIIT: ${H.length} total.`;
+  // Dernière séance loggée
+  const allDates=new Set();
+  Object.values(W).forEach(d=>(d.history||[]).forEach(e=>e.date&&allDates.add(e.date)));
+  H.forEach(e=>e.date&&allDates.add(e.date));
+  const lastDate=[...allDates].sort().at(-1)||'aucune';
+
+  // Progression récente (30j vs 60j) pour chaque exercice
+  const now=localDateStr(new Date());
+  const cut30=localDateStr(new Date(Date.now()-30*864e5));
+  const cut60=localDateStr(new Date(Date.now()-60*864e5));
+  const progressions=[];
+  for(const[ex,d] of Object.entries(W)){
+    const h=d.history||[];
+    const recent=h.filter(e=>e.date>=cut30).map(e=>e.weight||0);
+    const older=h.filter(e=>e.date>=cut60&&e.date<cut30).map(e=>e.weight||0);
+    if(!recent.length||!older.length) continue;
+    const avgR=recent.reduce((a,b)=>a+b,0)/recent.length;
+    const avgO=older.reduce((a,b)=>a+b,0)/older.length;
+    const pct=((avgR-avgO)/avgO*100).toFixed(0);
+    if(Math.abs(pct)>=3) progressions.push(`${ex}: ${pct>0?'+':''}${pct}%`);
+  }
+
+  // HIIT derniers 7j
+  const cut7=localDateStr(new Date(Date.now()-7*864e5));
+  const hiit7=H.filter(e=>e.date>=cut7).length;
+
+  return {
+    freq7, freq14, rpe7: rpe7.toFixed(1), vol7, prs, lastDate,
+    progressions: progressions.slice(0,5), hiit7, hiitTotal: H.length
+  };
+}
+
+async function runAI(mode){
+  const el=document.getElementById('ai-coach');
+  el.className='ai-response loading pulsing';
+  el.textContent='Claude analyse tes données...';
+  document.querySelectorAll('.btn-ai').forEach(b=>b.disabled=true);
+
+  const c=buildAIContext();
+  const neglected=['Pecs','Dos','Jambes','Épaules','Biceps','Triceps'].filter(m=>!c.vol7[m]||c.vol7[m]<1000);
+
+  const ctx=[
+    `Données TrainingOS (${localDateStr(new Date())}):`,
+    `- Séances: ${c.freq7}/7j, ${c.freq14}/14j`,
+    `- RPE moyen 7j: ${c.rpe7}/10`,
+    `- Dernière séance: ${c.lastDate}`,
+    `- HIIT: ${c.hiit7} cette semaine, ${c.hiitTotal} au total`,
+    `- Volume par muscle (7j, en lbs×reps): ${JSON.stringify(c.vol7)}`,
+    c.neglected?.length ? `- Muscles non travaillés cette semaine: ${neglected.join(', ')}` : '',
+    c.prs.length ? `- Top PRs estimés: ${c.prs.join(', ')}` : '',
+    c.progressions.length ? `- Progression 30j: ${c.progressions.join(', ')}` : '',
+  ].filter(Boolean).join('\n');
 
   const prompts={
-    analyse: `${ctx}\n\nFais une analyse courte et actionnable de mon entraînement (5-6 phrases max). Identifie les points forts, les axes d'amélioration, et une recommandation concrète pour cette semaine. Réponds en français, de façon directe et motivante.`,
-    fatigue: `${ctx}\n\nÉvalue mon niveau de fatigue et de récupération. Est-ce que je suis en surcharge, en sous-entraînement, ou dans la zone optimale ? Donne une recommandation concrète pour les 3 prochains jours. En français, 4-5 phrases max.`,
-    suggestion: `${ctx}\n\nSuggère-moi la prochaine séance idéale selon mes données. Quel type de séance, quels muscles cibler, quelle intensité viser ? Sois précis et pratique. En français, 4-5 phrases max.`,
+    analyse: `${ctx}\n\nFais une analyse personnalisée et actionnable de mon entraînement (5-6 phrases). Identifie les points forts, les axes d'amélioration prioritaires, et donne UNE recommandation concrète à appliquer cette semaine. Sois direct et motivant.`,
+    fatigue: `${ctx}\n\nÉvalue mon niveau de fatigue et de récupération basé sur ces données réelles. Suis-je en surcharge, sous-entraîné, ou dans la zone optimale ? Explique pourquoi, et donne des recommandations concrètes pour les 3 prochains jours. 4-5 phrases max.`,
+    suggestion: `${ctx}\n\nEn analysant mes données, suggère la prochaine séance idéale. Précise: quel type de séance (muscu/HIIT/récupération), quels groupes musculaires cibler en priorité, et quelle intensité viser (RPE cible). Sois précis et pratique. 4-5 phrases max.`,
+    progression: `${ctx}\n\nAnalyse ma progression sur les derniers 30-60 jours. Quels exercices progressent bien ? Lesquels stagnent ? Qu'est-ce qui explique ces tendances et que dois-je ajuster pour continuer à progresser ? 5-6 phrases max.`,
   };
 
   try {
@@ -313,11 +363,11 @@ async function runAI(mode){
       body:JSON.stringify({prompt:prompts[mode]})
     });
     const data=await res.json();
-    el.className='ai-response';
+    el.className='ai-response fu';
     el.textContent=data.response||data.error||'Erreur inconnue';
   } catch(e){
     el.className='ai-response error';
-    el.textContent='Erreur de connexion à l\'API. Vérifie ta clé OpenRouter dans .env';
+    el.textContent='Erreur de connexion. Vérifie que ANTHROPIC_API_KEY est configurée dans .env et sur Vercel.';
   }
   document.querySelectorAll('.btn-ai').forEach(b=>b.disabled=false);
 }
