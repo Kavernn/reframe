@@ -28,6 +28,12 @@ from progression  import estimate_1rm, should_increase, next_weight, parse_reps,
 from deload       import analyser_deload, load_deload_state
 from goals        import load_goals, check_goals_achieved, get_progress_bar, set_goal
 from body_weight  import load_body_weight, log_body_weight, get_tendance
+from nutrition    import (load_settings as load_nutrition_settings,
+                          save_settings as save_nutrition_settings,
+                          get_today_entries, get_today_totals,
+                          add_entry as nutrition_add_entry,
+                          delete_entry as nutrition_delete_entry,
+                          get_recent_days)
 from db           import get_json, set_json
 from db           import _ON_VERCEL
 
@@ -106,9 +112,56 @@ def index():
         deload_state = deload_state,
         sessions     = sessions,
         weights      = weights,
-        hiit_log     = load_hiit_log_local(),
-        now          = datetime.now().strftime("%A")
+        hiit_log          = load_hiit_log_local(),
+        now               = datetime.now().strftime("%A"),
+        nutrition_totals  = get_today_totals(),
+        nutrition_settings= load_nutrition_settings(),
     )
+
+
+@app.route("/nutrition")
+def nutrition():
+    settings = load_nutrition_settings()
+    entries  = get_today_entries()
+    totals   = get_today_totals()
+    recent   = get_recent_days(7)
+    return render_template("nutrition.html",
+        settings = settings,
+        entries  = entries,
+        totals   = totals,
+        recent   = recent,
+        today    = datetime.now().strftime("%Y-%m-%d"),
+    )
+
+
+@app.route("/api/nutrition/add", methods=["POST"])
+def api_nutrition_add():
+    data  = request.get_json()
+    entry = nutrition_add_entry(
+        nom      = data.get("nom", ""),
+        calories = float(data.get("calories", 0)),
+        proteines= float(data.get("proteines", 0)),
+        glucides = float(data.get("glucides", 0)),
+        lipides  = float(data.get("lipides", 0)),
+    )
+    return jsonify({"success": True, "entry": entry, "totals": get_today_totals()})
+
+
+@app.route("/api/nutrition/delete", methods=["POST"])
+def api_nutrition_delete():
+    data = request.get_json()
+    ok   = nutrition_delete_entry(data.get("id", ""))
+    return jsonify({"success": ok, "totals": get_today_totals()})
+
+
+@app.route("/api/nutrition/settings", methods=["POST"])
+def api_nutrition_settings():
+    data = request.get_json()
+    save_nutrition_settings(
+        int(data.get("limite_calories", 2200)),
+        int(data.get("objectif_proteines", 160)),
+    )
+    return jsonify({"success": True})
 
 
 @app.route("/inventaire")

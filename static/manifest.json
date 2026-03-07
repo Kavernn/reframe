@@ -50,6 +50,13 @@
       "description": "Lancer le timer de repos",
       "url": "/timer",
       "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Nutrition",
+      "short_name": "Nutrition",
+      "description": "Tracker de calories du jour",
+      "url": "/nutrition",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -750,7 +750,28 @@
 </div>
 {% endif %}
 
-<!-- ⑧ NAVIGATION RAPIDE -->
+<!-- ⑧ NUTRITION MINI-CARD -->
+{% if nutrition_totals and nutrition_settings %}
+{% set ncal = nutrition_totals.calories %}
+{% set nlim = nutrition_settings.limite_calories %}
+{% set npct = [ncal / nlim * 100, 100] | min if nlim > 0 else 0 %}
+<a href="/nutrition" style="text-decoration:none;">
+<div class="card mb-14 fade-up delay-4" style="{% if ncal > nlim %}border-color:rgba(244,63,94,0.35);{% endif %}">
+  <div class="flex-between mb-8">
+    <div class="card-title" style="margin:0;">🍽️ Calories aujourd'hui</div>
+    <span style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;{% if ncal > nlim %}color:var(--rose);{% else %}color:var(--orange);{% endif %}">{{ ncal }} / {{ nlim }} kcal</span>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-fill" style="width:{{ npct }}%;{% if ncal > nlim %}background:linear-gradient(90deg,#f43f5e,#e11d48);{% endif %}"></div>
+  </div>
+  <div style="font-size:0.75rem;margin-top:6px;{% if ncal > nlim %}color:var(--rose);{% else %}color:var(--green);{% endif %}">
+    {% if ncal > nlim %}Déficit dépassé (+{{ ncal - nlim }} kcal){% else %}Déficit OK — reste {{ nlim - ncal }} kcal{% endif %}
+  </div>
+</div>
+</a>
+{% endif %}
+
+<!-- ⑨ NAVIGATION RAPIDE -->
 <div class="quick-nav fade-up delay-4">
   <a href="/stats" class="qnav-item">
     <span class="qnav-icon">📊</span>
@@ -783,6 +804,10 @@
   <a href="/bodycomp" class="qnav-item">
     <span class="qnav-icon">⚖️</span>
     <span class="qnav-lbl">Body Comp</span>
+  </a>
+  <a href="/nutrition" class="qnav-item">
+    <span class="qnav-icon">🍽️</span>
+    <span class="qnav-lbl">Nutrition</span>
   </a>
 </div>
 
