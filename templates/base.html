@@ -497,7 +497,7 @@
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/static/sw.js', { scope: '/' })
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(registration => {
           // Vérifie les updates toutes les 60s
           setInterval(() => registration.update(), 60000);

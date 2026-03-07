@@ -707,11 +707,28 @@ def api_deload():
 
 @app.route("/sw.js")
 def service_worker():
-    return send_from_directory(
-        os.path.join(BASE_DIR, "static"),
-        "sw.js",
-        mimetype="application/javascript"
+    # Version = SHA git sur Vercel, timestamp horaire en local
+    # Change automatiquement à chaque déploiement → nouveau CACHE_NAME → SW update → reload
+    build_version = (
+        os.getenv('VERCEL_GIT_COMMIT_SHA', '')[:8]
+        or datetime.now().strftime('%Y%m%d%H')
     )
+    with open(os.path.join(BASE_DIR, "static", "sw.js")) as f:
+        content = f.read()
+    # Remplace le CACHE_NAME hardcodé par la version du build
+    import re
+    content = re.sub(
+        r"(const CACHE_NAME\s*=\s*')[^']*(')",
+        f"\\g<1>trainingos-{build_version}\\2",
+        content
+    )
+    from flask import make_response
+    resp = make_response(content, 200)
+    resp.headers['Content-Type']  = 'application/javascript'
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma']        = 'no-cache'
+    resp.headers['Expires']       = '0'
+    return resp
 
 
 # ── Lancement local ──────────────────────────────────────────
