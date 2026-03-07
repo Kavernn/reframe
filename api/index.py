@@ -22,7 +22,7 @@ from planner      import get_today, get_week_schedule, get_suggested_weights_for
 from hiit         import get_hiit_str
 from log_workout  import load_weights, save_weights, log_single_exercise
 from inventory    import load_inventory, save_inventory, calculate_plates
-from sessions     import load_sessions, log_session
+from sessions     import load_sessions, log_session, log_second_session, session_exists
 from user_profile import load_user_profile, save_user_profile
 from progression  import estimate_1rm, should_increase, next_weight, parse_reps, progression_status
 from deload       import analyser_deload, load_deload_state
@@ -571,13 +571,22 @@ def api_session_delete():
 @app.route("/api/log_session", methods=["POST"])
 def api_log_session():
     try:
-        data    = request.get_json()
+        data           = request.get_json()
         # Utilise la date locale du client si fournie (évite le décalage UTC/EST)
-        today   = data.get("date") or datetime.now().strftime("%Y-%m-%d")
-        rpe     = data.get("rpe")
-        comment = data.get("comment", "")
-        exos    = data.get("exos", [])
-        log_session(today, rpe, comment, exos)
+        today          = data.get("date") or datetime.now().strftime("%Y-%m-%d")
+        rpe            = data.get("rpe")
+        comment        = data.get("comment", "")
+        exos           = data.get("exos", [])
+        second_session = data.get("second_session", False)
+
+        if session_exists(today) and not second_session:
+            return jsonify({"error": "already_logged"}), 409
+
+        if second_session:
+            log_second_session(today, rpe, comment, exos)
+        else:
+            log_session(today, rpe, comment, exos)
+
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

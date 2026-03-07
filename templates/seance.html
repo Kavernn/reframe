@@ -243,9 +243,9 @@
 </div>
 
 {% if already_logged %}
-<div class="card" style="border-color: rgba(249,115,22,0.4); background: rgba(249,115,22,0.06); margin-bottom: 16px;">
+<div class="card" id="already-logged-banner" style="border-color: rgba(249,115,22,0.4); background: rgba(249,115,22,0.06); margin-bottom: 16px;">
   <div style="display: flex; align-items: center; gap: 10px;">
-    <span style="font-size: 1.4rem;">⚠️</span>
+    <span style="font-size: 1.4rem;">✅</span>
     <div>
       <div style="font-weight: 700; color: var(--orange);">Séance déjà loggée aujourd'hui</div>
       {% if previous_session %}
@@ -256,8 +256,8 @@
       {% endif %}
     </div>
   </div>
-  <button class="btn btn-secondary" style="margin-top: 12px; width: 100%;" onclick="forceRelog()">
-    ✏️ Modifier / Re-logger quand même
+  <button class="btn btn-secondary" style="margin-top: 12px; width: 100%;" onclick="startSecondSession()">
+    + Logger une 2ème séance
   </button>
 </div>
 {% endif %}
@@ -461,23 +461,16 @@
   let   doneCount = 0;
 
   const ALREADY_LOGGED = {{ 'true' if already_logged else 'false' }};
-  let   relogAllowed  = false;
+  let   secondSession  = false;
 
-  function forceRelog() {
-    relogAllowed = true;
-    document.querySelector('.card[style*="rgba(249,115,22,0.06)"]').style.display = 'none';
-    showToast('Tu peux modifier ta séance ✏️');
+  function startSecondSession() {
+    secondSession = true;
+    document.getElementById('already-logged-banner').style.display = 'none';
+    showToast('Mode 2ème séance activé 💪');
   }
 
   // ── INITIALISATION ──────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    if (ALREADY_LOGGED) {
-      const btn = document.getElementById('btn-terminer');
-      if (btn) {
-        btn.textContent = '✏️ Modifier la séance';
-        btn.style.background = 'var(--orange2)';
-      }
-    }
     toggleExercise(1);
 
     // --- AJOUT POUR LE DRAG AND DROP ---
@@ -634,8 +627,8 @@
 
   // ── FIN DE SÉANCE ─────────────────────────────────────
   function finirSeance() {
-    if (ALREADY_LOGGED && !relogAllowed) {
-      showToast('Séance déjà loggée ! Clique sur "Modifier / Re-logger quand même"', 'error');
+    if (ALREADY_LOGGED && !secondSession) {
+      showToast('Séance déjà loggée ! Clique sur "+ Logger une 2ème séance" pour en ajouter une autre.', 'error');
       return;
     }
     document.getElementById('modal-fin').style.display = 'flex';
@@ -649,7 +642,7 @@
     await fetch('/api/log_session', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ rpe, comment, exos, date: new Date().toLocaleDateString('en-CA') })
+      body:    JSON.stringify({ rpe, comment, exos, date: new Date().toLocaleDateString('en-CA'), second_session: secondSession })
     });
 
     showToast('Séance sauvegardée ! 💪');
