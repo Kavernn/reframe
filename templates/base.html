@@ -498,6 +498,35 @@
     🔄 Nouvelle version disponible — Tap pour mettre à jour
   </div>
 
+  <!-- ── CAPACITOR NATIVE BRIDGE ──────────────────────────────────────────── -->
+  <script>
+  /**
+   * haptic(style) — feedback haptique via Capacitor (iOS natif).
+   * Silencieux sur web/PWA installée.
+   * Styles : 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error'
+   */
+  window.haptic = (function() {
+    const CAP = window.Capacitor;
+    if (!CAP || !CAP.isNativePlatform || !CAP.isNativePlatform()) return () => {};
+
+    const Haptics = CAP.Plugins && CAP.Plugins.Haptics;
+    if (!Haptics) return () => {};
+
+    const IMPACT  = { light: 'LIGHT', medium: 'MEDIUM', heavy: 'HEAVY' };
+    const NOTIFY  = { success: 'SUCCESS', warning: 'WARNING', error: 'ERROR' };
+
+    return function haptic(style = 'medium') {
+      try {
+        if (NOTIFY[style]) {
+          Haptics.notification({ type: NOTIFY[style] });
+        } else {
+          Haptics.impact({ style: IMPACT[style] || 'MEDIUM' });
+        }
+      } catch (_) {}
+    };
+  })();
+  </script>
+
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
