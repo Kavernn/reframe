@@ -1,9 +1,21 @@
 import SwiftUI
+import Combine
+
+// MARK: - Tab Bar Visibility (partagé via Environment)
+class TabBarVisibility: ObservableObject {
+    static let shared = TabBarVisibility()
+    @Published var visible = true
+    @Published var scrollingDown = false
+}
 
 struct ContentView: View {
-    @StateObject private var api = APIService.shared
-    @StateObject private var network = NetworkMonitor.shared
-    @State private var selectedTab = 0
+    @StateObject private var api      = APIService.shared
+    @StateObject private var network  = NetworkMonitor.shared
+    @StateObject private var tabState = TabBarVisibility.shared
+    @State private var selectedTab    = 0
+    @State private var keyboardUp     = false
+
+    private var showBar: Bool { tabState.visible && !keyboardUp && !tabState.scrollingDown }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -25,7 +37,7 @@ struct ContentView: View {
                 .zIndex(1)
             }
 
-            // Page content
+            // Page content — padding bottom pour laisser place au pill
             Group {
                 switch selectedTab {
                 case 0: DashboardView()
@@ -36,95 +48,141 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.bottom, showBar ? 80 : 0)
 
-            // Custom Tab Bar
-            CustomTabBar(selected: $selectedTab)
+            // Floating pill tab bar
+            if showBar {
+                FloatingTabBar(selected: $selectedTab)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, safeAreaBottom + 8)
+                    .zIndex(2)
+            }
         }
         .ignoresSafeArea(edges: .bottom)
-    }
-}
-
-struct CustomTabBar: View {
-    @Binding var selected: Int
-
-    let tabs: [(String, String)] = [
-        ("house.fill",          "Accueil"),
-        ("dumbbell.fill",       "Séance"),
-        ("calendar",            "Historique"),
-        ("timer",               "Timer"),
-        ("ellipsis.circle.fill","Plus"),
-    ]
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(tabs.indices, id: \.self) { i in
-                let (icon, label) = tabs[i]
-                let isSelected = selected == i
-
-                Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        selected = i
-                    }
-                } label: {
-                    VStack(spacing: 4) {
-                        ZStack {
-                            if isSelected {
-                                Capsule()
-                                    .fill(Color.orange.opacity(0.18))
-                                    .frame(width: 44, height: 30)
-                                    .shadow(color: .orange.opacity(0.3), radius: 8)
-                                    .matchedGeometryEffect(id: "tabBG", in: tabNamespace)
-                            }
-                            Image(systemName: icon)
-                                .font(.system(size: isSelected ? 17 : 16, weight: isSelected ? .semibold : .regular))
-                                .foregroundColor(isSelected ? .orange : .gray.opacity(0.6))
-                                .scaleEffect(isSelected ? 1.1 : 1.0)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-                        }
-                        .frame(width: 44, height: 30)
-
-                        Text(label)
-                            .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
-                            .foregroundColor(isSelected ? .orange : .gray.opacity(0.5))
-                            .scaleEffect(isSelected ? 1.05 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 10)
-                    .padding(.bottom, 6)
-                }
-                .buttonStyle(SpringButtonStyle(scale: 0.92))
-            }
+        .environmentObject(tabState)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { keyboardUp = true }
         }
-        .background(
-            ZStack {
-                Rectangle()
-                    .fill(Color(hex: "0c0c18"))
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.white.opacity(0.05), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            }
-            .overlay(
-                Rectangle()
-                    .fill(Color.white.opacity(0.07))
-                    .frame(height: 0.5),
-                alignment: .top
-            )
-        )
-        .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: -4)
-        .padding(.bottom, safeAreaBottom)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { keyboardUp = false }
+        }
     }
-
-    @Namespace private var tabNamespace
 
     private var safeAreaBottom: CGFloat {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first?.windows.first?.safeAreaInsets.bottom ?? 0
+    }
+}
+
+// MARK: - Floating Pill Tab Bar
+struct FloatingTabBar: View {
+    @Binding var selected: Int
+    @Namespace private var ns
+
+    let tabs: [(String, String, Color)] = [
+        ("house.fill",           "Accueil",    .orange),
+        ("dumbbell.fill",        "Séance",     .orange),
+        ("calendar",             "Historique", .orange),
+        ("timer",                "Timer",      .orange),
+        ("ellipsis.circle.fill", "Plus",       .orange),
+    ]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(tabs.indices, id: \.self) { i in
+                let (icon, label, color) = tabs[i]
+                let isSelected = selected == i
+
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        selected = i
+                    }
+                } label: {
+                    VStack(spacing: 3) {
+                        ZStack {
+                            if isSelected {
+                                Capsule()
+                                    .fill(color.opacity(0.2))
+                                    .frame(width: 40, height: 26)
+                                    .shadow(color: color.opacity(0.4), radius: 6)
+                                    .matchedGeometryEffect(id: "pill", in: ns)
+                            }
+                            Image(systemName: icon)
+                                .font(.system(size: 15, weight: isSelected ? .semibold : .regular))
+                                .foregroundColor(isSelected ? color : .gray.opacity(0.5))
+                                .scaleEffect(isSelected ? 1.1 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+                        }
+                        .frame(width: 40, height: 26)
+
+                        Text(label)
+                            .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
+                            .foregroundColor(isSelected ? color : .gray.opacity(0.45))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(SpringButtonStyle(scale: 0.88))
+            }
+        }
+        .padding(.horizontal, 12)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 26)
+                    .fill(Color(hex: "0e0e1c").opacity(0.95))
+                RoundedRectangle(cornerRadius: 26)
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.06), .clear],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 26)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+            )
+        )
+        .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 8)
+        .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - Scroll-aware modifier
+// Usage: .trackScroll() dans un ScrollView pour masquer le tab bar en scrollant vers le bas
+struct ScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+extension View {
+    /// Ajoute la détection de scroll vers le bas pour masquer le tab bar.
+    func hideTabBarOnScroll() -> some View {
+        self.modifier(HideTabBarOnScrollModifier())
+    }
+}
+
+struct HideTabBarOnScrollModifier: ViewModifier {
+    @EnvironmentObject private var tabState: TabBarVisibility
+    @State private var lastOffset: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: ScrollOffsetKey.self,
+                        value: geo.frame(in: .named("scroll")).minY
+                    )
+                }
+            )
+            .onPreferenceChange(ScrollOffsetKey.self) { offset in
+                let delta = offset - lastOffset
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    tabState.scrollingDown = delta < -8
+                }
+                lastOffset = offset
+            }
     }
 }
