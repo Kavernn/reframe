@@ -3,6 +3,7 @@ import SwiftUI
 struct TimerView: View {
     @State private var workSecs = 40
     @State private var restSecs = 20
+    @State private var prepareSecs = 5
     @State private var totalRounds = 8
     @State private var currentRound = 1
     @State private var phase: TimerPhase = .idle
@@ -10,31 +11,34 @@ struct TimerView: View {
     @State private var running = false
     @State private var timerTask: Task<Void, Never>? = nil
 
-    enum TimerPhase { case idle, work, rest, done }
+    enum TimerPhase { case idle, prepare, work, rest, done }
 
     var phaseColor: Color {
         switch phase {
-        case .work: return .orange
-        case .rest: return .green
-        case .done: return .green
-        case .idle: return .gray
+        case .prepare: return .yellow
+        case .work:    return .orange
+        case .rest:    return .green
+        case .done:    return .green
+        case .idle:    return .gray
         }
     }
 
     var progress: Double {
         switch phase {
-        case .work: return workSecs > 0 ? Double(remaining) / Double(workSecs) : 1
-        case .rest: return restSecs > 0 ? Double(remaining) / Double(restSecs) : 1
-        default:    return 1.0
+        case .prepare: return prepareSecs > 0 ? Double(remaining) / Double(prepareSecs) : 1
+        case .work:    return workSecs > 0 ? Double(remaining) / Double(workSecs) : 1
+        case .rest:    return restSecs > 0 ? Double(remaining) / Double(restSecs) : 1
+        default:       return 1.0
         }
     }
 
     var phaseLabel: String {
         switch phase {
-        case .work: return "WORK"
-        case .rest: return "REST"
-        case .done: return "TERMINÉ"
-        case .idle: return "PRÊT"
+        case .prepare: return "PRÉPARE"
+        case .work:    return "WORK"
+        case .rest:    return "REST"
+        case .done:    return "TERMINÉ"
+        case .idle:    return "PRÊT"
         }
     }
 
@@ -72,7 +76,7 @@ struct TimerView: View {
                             .foregroundColor(phaseColor)
                             .monospacedDigit()
                             .contentTransition(.numericText())
-                        if phase != .idle {
+                        if phase == .work || phase == .rest {
                             Text("ROUND \(currentRound) / \(totalRounds)")
                                 .font(.system(size: 11, weight: .semibold))
                                 .tracking(2)
@@ -85,7 +89,7 @@ struct TimerView: View {
                 HStack(spacing: 20) {
                     CircleButton(icon: "arrow.counterclockwise", size: 52, color: .gray) {
                         stopTimer()
-                        phase = .idle; currentRound = 1; remaining = workSecs
+                        phase = .idle; currentRound = 1; remaining = prepareSecs
                     }
                     CircleButton(
                         icon: running ? "pause.fill" : "play.fill",
@@ -117,6 +121,15 @@ struct TimerView: View {
 
                 // Settings — WORK, REST, ROUNDS
                 VStack(spacing: 10) {
+                    TimerStepperRow(
+                        label: "⏱  PRÉPARE",
+                        value: $prepareSecs,
+                        color: .yellow,
+                        step: 1,
+                        min: 1,
+                        max: 60,
+                        onChanged: { _ in }
+                    )
                     TimerStepperRow(
                         label: "⚡  WORK",
                         value: $workSecs,
@@ -164,8 +177,8 @@ struct TimerView: View {
         } else {
             if phase == .idle || phase == .done {
                 currentRound = 1
-                phase = .work
-                remaining = workSecs
+                phase = .prepare
+                remaining = prepareSecs
             }
             running = true
             timerTask = Task { await runLoop() }
@@ -198,6 +211,9 @@ struct TimerView: View {
 
     private func advance() {
         switch phase {
+        case .prepare:
+            phase = .work
+            remaining = workSecs
         case .work:
             if currentRound >= totalRounds {
                 phase = .done
@@ -218,6 +234,8 @@ struct TimerView: View {
 
     private func skipPhase() {
         switch phase {
+        case .prepare:
+            phase = .work; remaining = workSecs
         case .work:
             if currentRound >= totalRounds {
                 phase = .done; running = false; timerTask?.cancel()
@@ -227,7 +245,7 @@ struct TimerView: View {
         case .rest:
             currentRound += 1; phase = .work; remaining = workSecs
         case .idle:
-            phase = .work; remaining = workSecs
+            currentRound = 1; phase = .prepare; remaining = prepareSecs
             running = true
             timerTask = Task { await runLoop() }
         default:
