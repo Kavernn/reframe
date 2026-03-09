@@ -11,7 +11,7 @@ struct NutritionView: View {
 
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .orange)
                 if isLoading {
@@ -362,7 +362,7 @@ struct AddNutritionSheet: View {
     @State private var lipides = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 Form {

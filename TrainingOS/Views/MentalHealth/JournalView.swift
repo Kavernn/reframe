@@ -132,7 +132,7 @@ struct JournalEntrySheet: View {
     @State private var errorMsg: String?
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section("Prompt") {
                     Text(prompt.isEmpty ? "Écris librement…" : prompt)

@@ -174,7 +174,7 @@ private struct AddHabitSheet: View {
                          "figure.walk", "moon.fill", "phone.fill", "fork.knife"]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section("Nom de l'habitude") {
                     TextField("Ex: Prendre l'air 10 min", text: $name)

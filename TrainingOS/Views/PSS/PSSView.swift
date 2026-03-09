@@ -10,7 +10,7 @@ struct PSSView: View {
     @State private var isShortMode = false  // false = PSS-10, true = PSS-4
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .purple)
 
@@ -350,7 +350,7 @@ struct PSSQuestionnaireSheet: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "0C0C18").ignoresSafeArea()
 

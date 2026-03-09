@@ -8,7 +8,7 @@ struct DashboardView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: todayAccentColor)
 

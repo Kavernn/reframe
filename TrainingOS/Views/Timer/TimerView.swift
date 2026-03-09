@@ -85,6 +85,34 @@ struct TimerView: View {
                     }
                 }
 
+                // −5s / +5s ajustement du décompte actif
+                if phase != .idle && phase != .done {
+                    HStack(spacing: 16) {
+                        Button {
+                            remaining = max(1, remaining - 5)
+                        } label: {
+                            Text("−5s")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(phaseColor)
+                                .frame(width: 72, height: 36)
+                                .background(phaseColor.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(phaseColor.opacity(0.3), lineWidth: 1))
+                        }
+                        Button {
+                            remaining += 5
+                        } label: {
+                            Text("+5s")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(phaseColor)
+                                .frame(width: 72, height: 36)
+                                .background(phaseColor.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(phaseColor.opacity(0.3), lineWidth: 1))
+                        }
+                    }
+                }
+
                 // Play / Reset / Skip
                 HStack(spacing: 20) {
                     CircleButton(icon: "arrow.counterclockwise", size: 52, color: .gray) {
@@ -94,7 +122,7 @@ struct TimerView: View {
                     CircleButton(
                         icon: running ? "pause.fill" : "play.fill",
                         size: 68,
-                        color: running ? .orange : .orange,
+                        color: .orange,
                         filled: !running
                     ) { toggleTimer() }
                     CircleButton(icon: "forward.end.fill", size: 52, color: .gray) {
@@ -119,7 +147,7 @@ struct TimerView: View {
 
                 Divider().background(Color.white.opacity(0.07))
 
-                // Settings — WORK, REST, ROUNDS
+                // Settings — PRÉPARE, WORK, REST, ROUNDS (désactivés pendant le run)
                 VStack(spacing: 10) {
                     TimerStepperRow(
                         label: "⏱  PRÉPARE",
@@ -160,6 +188,8 @@ struct TimerView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
+                .disabled(running)
+                .opacity(running ? 0.4 : 1)
             }
         }
         .background(AmbientBackground(color: phaseColor))

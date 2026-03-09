@@ -25,7 +25,7 @@ struct HistoriqueView: View {
     @State private var expandedDates: Set<String> = []
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .orange)
 

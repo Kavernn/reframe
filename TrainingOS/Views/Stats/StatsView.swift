@@ -188,7 +188,7 @@ struct StatsView: View {
 
     // ── Body ─────────────────────────────────────────────────────────
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .blue)
                 if isLoading {
@@ -737,7 +737,7 @@ struct ExerciseDetailView: View {
     @ObservedObject private var units = UnitSettings.shared
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 ScrollView {

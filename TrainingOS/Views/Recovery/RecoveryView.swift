@@ -29,7 +29,7 @@ struct RecoveryView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .indigo)
                 if isLoading {
@@ -255,7 +255,7 @@ struct LogRecoverySheet: View {
     @State private var isLoadingHK = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 ScrollView {

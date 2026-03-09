@@ -8,7 +8,7 @@ struct ObjectifsView: View {
     @State private var selectedObjectif: ObjectifEntry? = nil
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .orange)
 
@@ -143,7 +143,7 @@ struct AddGoalSheet: View {
     @State private var deadline = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 Form {
@@ -201,7 +201,7 @@ struct EditGoalSheet: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 VStack(spacing: 20) {

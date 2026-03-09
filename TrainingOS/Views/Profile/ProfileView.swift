@@ -18,7 +18,7 @@ struct ProfileView: View {
     var profile: UserProfile? { api.dashboard?.profile }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 if isLoading {

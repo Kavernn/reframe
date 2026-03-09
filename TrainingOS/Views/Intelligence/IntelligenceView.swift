@@ -12,7 +12,7 @@ struct IntelligenceView: View {
     @StateObject private var api = APIService.shared
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
 

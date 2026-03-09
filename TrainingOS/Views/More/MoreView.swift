@@ -4,7 +4,7 @@ struct MoreView: View {
     @StateObject private var api = APIService.shared
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .purple)
 

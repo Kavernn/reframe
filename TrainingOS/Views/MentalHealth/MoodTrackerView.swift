@@ -138,7 +138,7 @@ struct MoodLogSheet: View {
     @State private var emotionList: [MoodEmotion] = []
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section("Comment tu te sens ? (\(Int(score))/10)") {
                     Slider(value: $score, in: 1...10, step: 1)

@@ -17,7 +17,7 @@ struct CardioView: View {
     var totalDurationMin: Double { log.compactMap(\.durationMin).reduce(0, +) }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .teal)
                 if isLoading {
@@ -311,7 +311,7 @@ struct LogCardioSheet: View {
     @State private var isSaving = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 ScrollView {

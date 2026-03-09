@@ -13,7 +13,7 @@ struct HealthDashboardView: View {
     private var today: DailyHealthSummary? { week.first }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .cyan)
 

@@ -29,7 +29,7 @@ struct InventaireView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 if isLoading {

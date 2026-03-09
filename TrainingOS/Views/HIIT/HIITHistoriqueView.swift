@@ -11,7 +11,7 @@ struct HIITHistoriqueView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .red)
 

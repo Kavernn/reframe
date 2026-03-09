@@ -39,7 +39,7 @@ struct XPView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .yellow)
                 if isLoading {

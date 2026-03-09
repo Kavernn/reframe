@@ -7,7 +7,7 @@ struct MentalHealthView: View {
     @State private var showMoodSheet = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .mint)
 

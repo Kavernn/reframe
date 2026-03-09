@@ -13,7 +13,7 @@ struct BodyCompView: View {
 
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AmbientBackground(color: .green)
 
@@ -227,7 +227,7 @@ struct BodyWeightSheet: View {
     var isEdit: Bool { editEntry != nil }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 VStack(spacing: 20) {

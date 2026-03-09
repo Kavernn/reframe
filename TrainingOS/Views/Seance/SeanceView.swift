@@ -5,7 +5,7 @@ struct SeanceView: View {
     @StateObject private var vm = SeanceViewModel()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
 
@@ -289,7 +289,7 @@ struct ExtraSessionSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 Group {
@@ -698,7 +698,7 @@ struct FinishSessionSheet: View {
     var loggedCount: Int { logResults.count }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 ScrollView {
