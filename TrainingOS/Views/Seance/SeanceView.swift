@@ -336,13 +336,39 @@ struct WorkoutSeanceView: View {
         if isEditMode {
             VStack(spacing: 0) {
                 ForEach(exercises, id: \.0) { name, scheme in
-                    ExerciseRow(
-                        name: name,
-                        scheme: scheme,
-                        color: .orange,
-                        onTap: { editTarget = ExerciseTarget(seance: data.localToday, exercise: name, scheme: scheme) },
-                        onDelete: { Task { await deleteExercise(name) } }
-                    )
+                    HStack(spacing: 12) {
+                        // Delete
+                        Button {
+                            Task { await deleteExercise(name) }
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(.red)
+                        }
+                        // Edit scheme
+                        Button {
+                            editTarget = ExerciseTarget(seance: data.localToday, exercise: name, scheme: scheme)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(name)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white)
+                                    Text(scheme)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.orange.opacity(0.7))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color(hex: "11111c"))
                     Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 16)
                 }
                 Button { addTarget = SeanceName(id: data.localToday) } label: {
