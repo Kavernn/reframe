@@ -100,11 +100,17 @@ struct ProgrammeView: View {
 
     private func editExercise(seance: String, oldName: String, newName: String, scheme: String) async {
         if oldName != newName {
-            await postProgramme(["action": "remove", "jour": seance, "exercise": oldName])
-            await postProgramme(["action": "add", "jour": seance, "exercise": newName, "scheme": scheme])
+            // rename synce tous les jours du programme + inventaire
+            await postProgramme(["action": "rename", "jour": seance, "old_exercise": oldName, "new_exercise": newName])
+            await postProgramme(["action": "scheme", "jour": seance, "exercise": newName, "scheme": scheme])
             await MainActor.run {
-                fullProgram[seance]?.removeValue(forKey: oldName)
-                fullProgram[seance, default: [:]][newName] = scheme
+                // Mettre à jour toutes les séances localement
+                for key in fullProgram.keys {
+                    if fullProgram[key]?[oldName] != nil {
+                        fullProgram[key]?[newName] = fullProgram[key]?.removeValue(forKey: oldName)
+                    }
+                }
+                fullProgram[seance]?[newName] = scheme
             }
         } else {
             await postProgramme(["action": "scheme", "jour": seance, "exercise": oldName, "scheme": scheme])

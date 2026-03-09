@@ -852,6 +852,18 @@ def api_programme():
             del program[jour][old_ex]
         program[jour][new_ex] = scheme
 
+    elif action == "rename":
+        # Renomme dans TOUS les jours du programme + dans l'inventaire
+        old_ex = data.get("old_exercise")
+        new_ex = data.get("new_exercise")
+        for j, exos in program.items():
+            if old_ex in exos:
+                exos[new_ex] = exos.pop(old_ex)
+        inv = load_inventory()
+        if old_ex in inv:
+            inv[new_ex] = inv.pop(old_ex)
+            save_inventory(inv)
+
     elif action == "reorder":
         ordre         = data.get("ordre", [])
         ancien        = program[jour]
