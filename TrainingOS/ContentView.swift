@@ -5,7 +5,6 @@ import Combine
 class TabBarVisibility: ObservableObject {
     static let shared = TabBarVisibility()
     @Published var visible = true
-    @Published var scrollingDown = false
 }
 
 struct ContentView: View {
@@ -15,21 +14,19 @@ struct ContentView: View {
     @State private var selectedTab    = 0
     @State private var keyboardUp     = false
 
-    private var showBar: Bool { tabState.visible && !keyboardUp && !tabState.scrollingDown }
+    private var showBar: Bool { tabState.visible && !keyboardUp }
 
     var body: some View {
-        Group {
-            switch selectedTab {
-            case 0: DashboardView()
-            case 1: SeanceView()
-            case 2: HistoriqueView()
-            case 3: TimerView()
-            default: MoreView()
-            }
+        TabView(selection: $selectedTab) {
+            DashboardView().tag(0)
+            SeanceView().tag(1)
+            HistoriqueView().tag(2)
+            TimerView().tag(3)
+            MoreView().tag(4)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(edges: .bottom)
-        // Tab bar — overlay garantit la priorité de hit-testing
+        .onAppear { UITabBar.appearance().isHidden = true }
+        // Floating pill — overlay garantit la priorité de hit-testing
         .overlay(alignment: .bottom) {
             FloatingTabBar(selected: $selectedTab)
                 .padding(.bottom, safeAreaBottom + 8)
@@ -90,9 +87,7 @@ struct FloatingTabBar: View {
                 let isSelected = selected == i
 
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        selected = i
-                    }
+                    selected = i
                 } label: {
                     VStack(spacing: 3) {
                         ZStack {
@@ -141,41 +136,5 @@ struct FloatingTabBar: View {
         )
         .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 8)
         .padding(.horizontal, 20)
-    }
-}
-
-// MARK: - Scroll-aware modifier
-struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
-
-extension View {
-    func hideTabBarOnScroll() -> some View {
-        self.modifier(HideTabBarOnScrollModifier())
-    }
-}
-
-struct HideTabBarOnScrollModifier: ViewModifier {
-    @EnvironmentObject private var tabState: TabBarVisibility
-    @State private var lastOffset: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .background(
-                GeometryReader { geo in
-                    Color.clear.preference(
-                        key: ScrollOffsetKey.self,
-                        value: geo.frame(in: .named("scroll")).minY
-                    )
-                }
-            )
-            .onPreferenceChange(ScrollOffsetKey.self) { offset in
-                let delta = offset - lastOffset
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    tabState.scrollingDown = delta < -8
-                }
-                lastOffset = offset
-            }
     }
 }
