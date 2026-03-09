@@ -1019,8 +1019,9 @@ struct StepperRow: View {
 // MARK: - Rest Timer Sheet
 struct RestTimerSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var totalSeconds = 90
-    @State private var remaining = 90
+    @State private var totalSeconds = 120
+    @State private var remaining = 120
+    @State private var isRunning = false
     @State private var timerTask: Task<Void, Never>?
 
     private var progress: Double {
@@ -1060,32 +1061,75 @@ struct RestTimerSheet: View {
                         .contentTransition(.numericText())
                 }
 
+                // Adjust buttons
                 HStack(spacing: 16) {
-                    adjustButton(label: "−10s") { remaining = max(5, remaining - 10) }
-                    adjustButton(label: "+10s") { remaining += 10 }
+                    adjustButton(label: "−10s") {
+                        let newVal = max(10, remaining - 10)
+                        remaining = newVal
+                        if !isRunning { totalSeconds = newVal }
+                    }
+                    adjustButton(label: "+10s") {
+                        remaining += 10
+                        if !isRunning { totalSeconds = remaining }
+                    }
                 }
 
-                Button {
-                    timerTask?.cancel()
-                    dismiss()
-                } label: {
-                    Text("Passer")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.white.opacity(0.08))
-                        .cornerRadius(14)
+                // Play/Pause + Reset
+                HStack(spacing: 20) {
+                    // Reset
+                    Button {
+                        stopTimer()
+                        remaining = totalSeconds
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 56, height: 56)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Circle())
+                    }
+
+                    // Play / Pause
+                    Button {
+                        if isRunning { stopTimer() } else { startTimer() }
+                    } label: {
+                        Image(systemName: isRunning ? "pause.fill" : "play.fill")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundColor(.black)
+                            .frame(width: 72, height: 72)
+                            .background(timerColor)
+                            .clipShape(Circle())
+                    }
+
+                    // Fermer
+                    Button {
+                        stopTimer()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 56, height: 56)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Circle())
+                    }
                 }
-                .padding(.horizontal, 32)
             }
             .frame(maxWidth: .infinity)
         }
-        .onAppear {
-            remaining = totalSeconds
-            timerTask = Task { await runLoop() }
-        }
-        .onDisappear { timerTask?.cancel() }
+        .onDisappear { stopTimer() }
+    }
+
+    private func startTimer() {
+        guard remaining > 0 else { return }
+        isRunning = true
+        timerTask = Task { await runLoop() }
+    }
+
+    private func stopTimer() {
+        isRunning = false
+        timerTask?.cancel()
+        timerTask = nil
     }
 
     private func adjustButton(label: String, action: @escaping () -> Void) -> some View {
@@ -1111,9 +1155,8 @@ struct RestTimerSheet: View {
             if remaining > 0 {
                 remaining -= 1
                 if remaining == 0 {
+                    isRunning = false
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    try? await Task.sleep(nanoseconds: 1_500_000_000)
-                    if !Task.isCancelled { dismiss() }
                 }
             }
         }
