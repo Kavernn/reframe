@@ -18,7 +18,6 @@ struct NutritionView: View {
                     ProgressView().tint(.orange).scaleEffect(1.3)
                 } else {
                     ScrollView(showsIndicators: false) {
-            .scrollDismissesKeyboard(.interactively)
                         VStack(spacing: 16) {
                             MacroSummaryCard(totals: totals, settings: settings)
                                 .padding(.horizontal, 16)
@@ -57,6 +56,7 @@ struct NutritionView: View {
                         }
                         .padding(.vertical, 16)
                     }
+                    .scrollDismissesKeyboard(.interactively)
                 }
             }
             .navigationTitle("Nutrition")

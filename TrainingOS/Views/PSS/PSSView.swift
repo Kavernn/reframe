@@ -17,7 +17,6 @@ struct PSSView: View {
                     ProgressView().tint(.orange).scaleEffect(1.3)
                 } else {
                     ScrollView(showsIndicators: false) {
-            .scrollDismissesKeyboard(.interactively)
                         VStack(spacing: 16) {
 
                             // Bandeau "test dû" si applicable
@@ -59,6 +58,7 @@ struct PSSView: View {
                         .padding(.vertical, 16)
                         .padding(.bottom, 80)
                     }
+                    .scrollDismissesKeyboard(.interactively)
                     .refreshable { await loadData() }
                 }
             }
@@ -377,7 +377,6 @@ struct PSSQuestionnaireSheet: View {
 
     private var questionnaireBody: some View {
         ScrollView(showsIndicators: false) {
-            .scrollDismissesKeyboard(.interactively)
             VStack(spacing: 0) {
                 // Intro
                 VStack(spacing: 6) {
@@ -438,6 +437,7 @@ struct PSSQuestionnaireSheet: View {
                 .padding(.bottom, 40)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // ── Résultats page ────────────────────────────────────────────────────────
@@ -498,7 +498,6 @@ struct PSSResultsContent: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            .scrollDismissesKeyboard(.interactively)
             VStack(spacing: 16) {
                 PSSScoreRing(record: record)
                     .padding(.horizontal, 24)
@@ -521,6 +520,7 @@ struct PSSResultsContent: View {
             }
             .padding(.vertical, 16)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var insightsSection: some View {
