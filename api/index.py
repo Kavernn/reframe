@@ -1165,13 +1165,21 @@ def api_dashboard():
             "achieved": goal.get("achieved", False),
         }
 
+    # Merge HIIT sessions into sessions dict so the heatmap shows them too.
+    # If a date already has a muscu session, keep it; otherwise insert a minimal entry.
+    merged_sessions = dict(sessions)
+    for entry in hiit_log:
+        d = entry.get("date")
+        if d and d not in merged_sessions:
+            merged_sessions[d] = {"session_type": entry.get("session_type", "HIIT")}
+
     return jsonify({
         "today":               today_str,
         "week":                get_current_week(),
         "today_date":          today_date,
         "already_logged_today": already_logged_today,
         "schedule":            schedule,
-        "sessions":            sessions,
+        "sessions":            merged_sessions,
         "suggestions":         suggestions,
         "goals":               goals_progress,
         "full_program":        full_program,
