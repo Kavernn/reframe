@@ -571,7 +571,7 @@ struct ExerciseCard: View {
     @ObservedObject private var units = UnitSettings.shared
 
     @State private var weightStr = ""
-    @State private var repsStr = ""
+    @State private var repSets: [String] = []
     @State private var showHistory = false
     @State private var logStatus: LogStatus? = nil
 
@@ -580,8 +580,22 @@ struct ExerciseCard: View {
     var currentWeight: Double { weightData?.currentWeight ?? 0 }
     var lastReps: String { weightData?.lastReps ?? "—" }
 
+    private var setsCount: Int {
+        let s = scheme.lowercased()
+        if let x = s.firstIndex(of: "x") {
+            let before = String(s[s.startIndex..<x])
+            if let n = Int(before) { return max(1, min(n, 8)) }
+        }
+        return 3
+    }
+
+    private var repsStr: String {
+        repSets.filter { !$0.isEmpty }.joined(separator: ",")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).font(.system(size: 15, weight: .bold)).foregroundColor(.white)
@@ -593,6 +607,7 @@ struct ExerciseCard: View {
                 }
             }
 
+            // Poids actuel / dernières reps
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("POIDS ACTUEL").font(.system(size: 9, weight: .semibold)).tracking(1).foregroundColor(.gray)
@@ -606,27 +621,45 @@ struct ExerciseCard: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("POIDS (\(units.label.uppercased()))").font(.system(size: 9, weight: .semibold)).tracking(1).foregroundColor(.gray)
-                    TextField("0.0", text: $weightStr)
-                        .keyboardType(.decimalPad)
-                        .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
-                        .padding(10).background(Color(hex: "191926")).cornerRadius(8)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("REPS").font(.system(size: 9, weight: .semibold)).tracking(1).foregroundColor(.gray)
-                    TextField("ex: 8,8,8", text: $repsStr)
-                        .keyboardType(.numbersAndPunctuation)
-                        .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
-                        .padding(10).background(Color(hex: "191926")).cornerRadius(8)
-                }
-                Button(action: logExercise) {
-                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 36)).foregroundColor(.orange)
-                }
-                .padding(.top, 16)
+            // Poids
+            VStack(alignment: .leading, spacing: 4) {
+                Text("POIDS (\(units.label.uppercased()))").font(.system(size: 9, weight: .semibold)).tracking(1).foregroundColor(.gray)
+                TextField("0.0", text: $weightStr)
+                    .keyboardType(.decimalPad)
+                    .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                    .padding(10).background(Color(hex: "191926")).cornerRadius(8)
             }
 
+            // Reps par set
+            VStack(alignment: .leading, spacing: 6) {
+                Text("REPS PAR SET").font(.system(size: 9, weight: .semibold)).tracking(1).foregroundColor(.gray)
+                HStack(spacing: 8) {
+                    ForEach(repSets.indices, id: \.self) { i in
+                        VStack(spacing: 3) {
+                            Text("S\(i + 1)")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.gray)
+                            TextField("0", text: $repSets[i])
+                                .keyboardType(.numberPad)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
+                                .frame(width: 44, height: 40)
+                                .background(Color(hex: "191926"))
+                                .cornerRadius(8)
+                        }
+                    }
+                    Spacer()
+                    Button(action: logExercise) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 38))
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.top, 12)
+                }
+            }
+
+            // Statut
             if let status = logStatus {
                 HStack(spacing: 6) {
                     switch status {
@@ -641,6 +674,7 @@ struct ExerciseCard: View {
                 }
             }
 
+            // Historique
             if let history = weightData?.history, !history.isEmpty {
                 Button(action: { showHistory.toggle() }) {
                     HStack {
@@ -671,11 +705,20 @@ struct ExerciseCard: View {
         .background(Color(hex: "11111c"))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(logResult != nil ? Color.green.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1))
         .cornerRadius(14)
-        .onAppear { if currentWeight > 0 { weightStr = units.inputStr(currentWeight) } }
+        .onAppear {
+            if currentWeight > 0 { weightStr = units.inputStr(currentWeight) }
+            if repSets.isEmpty { repSets = Array(repeating: "", count: setsCount) }
+        }
+        .onChange(of: setsCount) {
+            if repSets.count != setsCount {
+                repSets = Array(repeating: "", count: setsCount)
+            }
+        }
     }
 
     private func logExercise() {
-        guard let displayW = Double(weightStr.replacingOccurrences(of: ",", with: ".")), !repsStr.isEmpty else { return }
+        guard let displayW = Double(weightStr.replacingOccurrences(of: ",", with: ".")),
+              !repsStr.isEmpty else { return }
         let w = units.toStorage(displayW)
         logResult = ExerciseLogResult(name: name, weight: w, reps: repsStr)
         logStatus = .success(displayW)
@@ -713,6 +756,7 @@ struct FinishSessionSheet: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("DURÉE (min)").font(.system(size: 11, weight: .bold)).tracking(2).foregroundColor(.gray)
                             TextField("ex: 60", text: $durationStr)
+                                        .keyboardType(.numberPad)
                                 .keyboardType(.numberPad)
                                 .foregroundColor(.white).tint(.orange)
                                 .padding(12).background(Color(hex: "191926")).cornerRadius(10)
