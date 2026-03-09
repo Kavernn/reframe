@@ -19,6 +19,27 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
+            // Page content
+            Group {
+                switch selectedTab {
+                case 0: DashboardView()
+                case 1: SeanceView()
+                case 2: HistoriqueView()
+                case 3: TimerView()
+                default: MoreView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.bottom, tabBarHeight)
+
+            // Floating pill — toujours dans la hiérarchie, caché via offset/opacity
+            FloatingTabBar(selected: $selectedTab)
+                .padding(.bottom, safeAreaBottom + 8)
+                .opacity(showBar ? 1 : 0)
+                .offset(y: showBar ? 0 : 80)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showBar)
+                .allowsHitTesting(showBar)
+
             // Offline banner
             if !network.isOnline {
                 VStack(spacing: 0) {
@@ -34,28 +55,8 @@ struct ContentView: View {
                     .background(Color.orange.opacity(0.9))
                     Spacer()
                 }
-                .zIndex(1)
-            }
-
-            // Page content — padding bottom pour laisser place au pill
-            Group {
-                switch selectedTab {
-                case 0: DashboardView()
-                case 1: SeanceView()
-                case 2: HistoriqueView()
-                case 3: TimerView()
-                default: MoreView()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, showBar ? 80 : 0)
-
-            // Floating pill tab bar
-            if showBar {
-                FloatingTabBar(selected: $selectedTab)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.bottom, safeAreaBottom + 8)
-                    .zIndex(2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .allowsHitTesting(false)
             }
         }
         .ignoresSafeArea(edges: .bottom)
@@ -67,6 +68,8 @@ struct ContentView: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { keyboardUp = false }
         }
     }
+
+    private var tabBarHeight: CGFloat { showBar ? 80 : 0 }
 
     private var safeAreaBottom: CGFloat {
         UIApplication.shared.connectedScenes
