@@ -1603,6 +1603,23 @@ def api_pss_check_due():
     return jsonify(pss_check_due(pss_type))
 
 
+@app.route("/api/pss/delete", methods=["POST"])
+def api_pss_delete():
+    """Supprime un enregistrement PSS par id. Body JSON: {"id": "..."}"""
+    from db import get_json, set_json
+    data = request.get_json() or {}
+    record_id = data.get("id")
+    if not record_id:
+        return jsonify({"error": "id requis"}), 400
+    records = get_json("pss_records", [])
+    before = len(records)
+    records = [r for r in records if r.get("id") != record_id]
+    if len(records) == before:
+        return jsonify({"error": "introuvable"}), 404
+    set_json("pss_records", records)
+    return jsonify({"success": True})
+
+
 # ── Santé Mentale ────────────────────────────────────────────
 
 from mood import (
