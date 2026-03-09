@@ -18,48 +18,42 @@ struct ContentView: View {
     private var showBar: Bool { tabState.visible && !keyboardUp && !tabState.scrollingDown }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Page content
-            Group {
-                switch selectedTab {
-                case 0: DashboardView()
-                case 1: SeanceView()
-                case 2: HistoriqueView()
-                case 3: TimerView()
-                default: MoreView()
-                }
+        Group {
+            switch selectedTab {
+            case 0: DashboardView()
+            case 1: SeanceView()
+            case 2: HistoriqueView()
+            case 3: TimerView()
+            default: MoreView()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, tabBarHeight)
-
-            // Floating pill — toujours dans la hiérarchie, caché via offset/opacity
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(edges: .bottom)
+        // Tab bar — overlay garantit la priorité de hit-testing
+        .overlay(alignment: .bottom) {
             FloatingTabBar(selected: $selectedTab)
                 .padding(.bottom, safeAreaBottom + 8)
                 .opacity(showBar ? 1 : 0)
                 .offset(y: showBar ? 0 : 80)
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showBar)
                 .allowsHitTesting(showBar)
-
-            // Offline banner
+        }
+        // Offline banner
+        .overlay(alignment: .top) {
             if !network.isOnline {
-                VStack(spacing: 0) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "wifi.slash")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("Hors-ligne — données en cache")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(Color.orange.opacity(0.9))
-                    Spacer()
+                HStack(spacing: 6) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Hors-ligne — données en cache")
+                        .font(.system(size: 12, weight: .medium))
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(Color.orange.opacity(0.9))
                 .allowsHitTesting(false)
             }
         }
-        .ignoresSafeArea(edges: .bottom)
         .environmentObject(tabState)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { keyboardUp = true }
@@ -68,8 +62,6 @@ struct ContentView: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { keyboardUp = false }
         }
     }
-
-    private var tabBarHeight: CGFloat { showBar ? (safeAreaBottom + 80) : 0 }
 
     private var safeAreaBottom: CGFloat {
         UIApplication.shared.connectedScenes
@@ -153,14 +145,12 @@ struct FloatingTabBar: View {
 }
 
 // MARK: - Scroll-aware modifier
-// Usage: .trackScroll() dans un ScrollView pour masquer le tab bar en scrollant vers le bas
 struct ScrollOffsetKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 extension View {
-    /// Ajoute la détection de scroll vers le bas pour masquer le tab bar.
     func hideTabBarOnScroll() -> some View {
         self.modifier(HideTabBarOnScrollModifier())
     }
