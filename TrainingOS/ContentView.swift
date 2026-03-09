@@ -18,15 +18,23 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            DashboardView().tag(0)
-            SeanceView().tag(1)
-            HistoriqueView().tag(2)
-            TimerView().tag(3)
-            MoreView().tag(4)
+            DashboardView()
+                .tag(0)
+                .toolbar(.hidden, for: .tabBar)
+            SeanceView()
+                .tag(1)
+                .toolbar(.hidden, for: .tabBar)
+            HistoriqueView()
+                .tag(2)
+                .toolbar(.hidden, for: .tabBar)
+            TimerView()
+                .tag(3)
+                .toolbar(.hidden, for: .tabBar)
+            MoreView()
+                .tag(4)
+                .toolbar(.hidden, for: .tabBar)
         }
         .ignoresSafeArea(edges: .bottom)
-        .onAppear { UITabBar.appearance().isHidden = true }
-        // Floating pill — overlay garantit la priorité de hit-testing
         .overlay(alignment: .bottom) {
             FloatingTabBar(selected: $selectedTab)
                 .padding(.bottom, safeAreaBottom + 8)
@@ -35,7 +43,6 @@ struct ContentView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showBar)
                 .allowsHitTesting(showBar)
         }
-        // Offline banner
         .overlay(alignment: .top) {
             if !network.isOnline {
                 HStack(spacing: 6) {
@@ -72,18 +79,17 @@ struct FloatingTabBar: View {
     @Binding var selected: Int
     @Namespace private var ns
 
-    let tabs: [(String, String, Color)] = [
-        ("house.fill",           "Accueil",    .orange),
-        ("dumbbell.fill",        "Séance",     .orange),
-        ("calendar",             "Historique", .orange),
-        ("timer",                "Timer",      .orange),
-        ("ellipsis.circle.fill", "Plus",       .orange),
+    let tabs: [(String, String)] = [
+        ("house.fill",           "Accueil"),
+        ("dumbbell.fill",        "Séance"),
+        ("calendar",             "Historique"),
+        ("timer",                "Timer"),
+        ("ellipsis.circle.fill", "Plus"),
     ]
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(tabs.indices, id: \.self) { i in
-                let (icon, label, color) = tabs[i]
                 let isSelected = selected == i
 
                 Button {
@@ -93,27 +99,28 @@ struct FloatingTabBar: View {
                         ZStack {
                             if isSelected {
                                 Capsule()
-                                    .fill(color.opacity(0.2))
+                                    .fill(Color.orange.opacity(0.2))
                                     .frame(width: 40, height: 26)
-                                    .shadow(color: color.opacity(0.4), radius: 6)
+                                    .shadow(color: Color.orange.opacity(0.4), radius: 6)
                                     .matchedGeometryEffect(id: "pill", in: ns)
                             }
-                            Image(systemName: icon)
+                            Image(systemName: tabs[i].0)
                                 .font(.system(size: 15, weight: isSelected ? .semibold : .regular))
-                                .foregroundColor(isSelected ? color : .gray.opacity(0.5))
+                                .foregroundColor(isSelected ? .orange : .gray.opacity(0.5))
                                 .scaleEffect(isSelected ? 1.1 : 1.0)
                                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
                         }
                         .frame(width: 40, height: 26)
 
-                        Text(label)
+                        Text(tabs[i].1)
                             .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
-                            .foregroundColor(isSelected ? color : .gray.opacity(0.45))
+                            .foregroundColor(isSelected ? .orange : .gray.opacity(0.45))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(SpringButtonStyle(scale: 0.88))
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
