@@ -1566,6 +1566,8 @@ def api_pss_submit():
         return jsonify(record), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 422
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/pss/history")

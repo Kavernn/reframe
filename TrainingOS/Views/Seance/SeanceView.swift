@@ -394,7 +394,7 @@ struct WorkoutSeanceView: View {
                     scheme: scheme,
                     weightData: data.weights[name],
                     logResult: $vm.logResults[name],
-                    onLogged: { showRestTimer = true }
+                    onLogged: nil
                 )
                 .padding(.horizontal, 16)
             }
@@ -454,6 +454,14 @@ struct WorkoutSeanceView: View {
                             .foregroundColor(isEditMode ? .green : .orange)
                     }
                     .padding(.leading, 8)
+                    Button {
+                        showRestTimer = true
+                    } label: {
+                        Image(systemName: "timer")
+                            .font(.system(size: 20))
+                            .foregroundColor(.cyan)
+                    }
+                    .padding(.leading, 4)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)

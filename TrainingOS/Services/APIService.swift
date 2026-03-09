@@ -320,9 +320,15 @@ class APIService: ObservableObject {
         if !triggers.isEmpty { body["triggers"] = triggers }
         if !triggerRatings.isEmpty { body["trigger_ratings"] = triggerRatings }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await URLSession.shared.data(for: req)
         CacheService.shared.clear(for: "pss_history")
         CacheService.shared.clear(for: "pss_check_due_full")
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let msg = (try? JSONDecoder().decode([String: String].self, from: data))?["error"]
+                   ?? "Erreur serveur \(http.statusCode)"
+            throw NSError(domain: "PSS", code: http.statusCode,
+                          userInfo: [NSLocalizedDescriptionKey: msg])
+        }
         return try JSONDecoder().decode(PSSRecord.self, from: data)
     }
 
