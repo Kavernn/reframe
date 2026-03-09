@@ -329,9 +329,75 @@ struct WorkoutSeanceView: View {
     @State private var isEditMode = false
 
     private var exercises: [(String, String)] {
-        localProgram.isEmpty
-            ? (data.fullProgram[data.localToday] ?? [:]).map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
-            : localProgram.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+        localProgram.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+    }
+
+    @ViewBuilder private var exerciseSection: some View {
+        if isEditMode {
+            VStack(spacing: 0) {
+                ForEach(exercises, id: \.0) { name, scheme in
+                    ExerciseRow(
+                        name: name,
+                        scheme: scheme,
+                        color: .orange,
+                        onTap: { editTarget = ExerciseTarget(seance: data.localToday, exercise: name, scheme: scheme) },
+                        onDelete: { Task { await deleteExercise(name) } }
+                    )
+                    Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 16)
+                }
+                Button { addTarget = SeanceName(id: data.localToday) } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill").foregroundColor(.orange)
+                        Text("Ajouter un exercice")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+            }
+            .background(Color(hex: "11111c"))
+            .cornerRadius(14)
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.2), lineWidth: 1))
+            .padding(.horizontal, 16)
+        } else {
+            ForEach(exercises, id: \.0) { name, scheme in
+                ExerciseCard(
+                    name: name,
+                    scheme: scheme,
+                    weightData: data.weights[name],
+                    logResult: $vm.logResults[name]
+                )
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    @ViewBuilder private var rpeCommentSection: some View {
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("RPE")
+                        .font(.system(size: 11, weight: .bold)).tracking(2).foregroundColor(.gray)
+                    Spacer()
+                    Text("\(rpe, specifier: "%.1f")")
+                        .font(.system(size: 20, weight: .black)).foregroundColor(rpeColor(rpe))
+                }
+                Slider(value: $rpe, in: 1...10, step: 0.5).tint(rpeColor(rpe))
+            }
+            .padding(16).background(Color(hex: "11111c")).cornerRadius(14)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("COMMENTAIRE")
+                    .font(.system(size: 10, weight: .bold)).tracking(2).foregroundColor(.gray)
+                TextField("Comment ça s'est passé ?", text: $comment, axis: .vertical)
+                    .font(.system(size: 14)).foregroundColor(.white).tint(.orange)
+                    .lineLimit(3, reservesSpace: true)
+                    .padding(12).background(Color(hex: "191926")).cornerRadius(10)
+            }
+            .padding(16).background(Color(hex: "11111c")).cornerRadius(14)
+        }
+        .padding(.horizontal, 16)
     }
 
     var body: some View {
@@ -364,72 +430,9 @@ struct WorkoutSeanceView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
 
-                if isEditMode {
-                    // ── Mode édition : swipe-to-delete + add ─────────────
-                    VStack(spacing: 0) {
-                        ForEach(exercises, id: \.0) { name, scheme in
-                            ExerciseRow(
-                                name: name,
-                                scheme: scheme,
-                                color: .orange,
-                                onTap: { editTarget = ExerciseTarget(seance: data.localToday, exercise: name, scheme: scheme) },
-                                onDelete: { Task { await deleteExercise(name) } }
-                            )
-                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 16)
-                        }
-                        Button { addTarget = SeanceName(id: data.localToday) } label: {
-                            HStack {
-                                Image(systemName: "plus.circle.fill").foregroundColor(.orange)
-                                Text("Ajouter un exercice")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.orange)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                        }
-                    }
-                    .background(Color(hex: "11111c"))
-                    .cornerRadius(14)
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.2), lineWidth: 1))
-                    .padding(.horizontal, 16)
-                } else {
-                    // ── Mode normal : ExerciseCards ──────────────────────
-                    ForEach(exercises, id: \.0) { name, scheme in
-                        ExerciseCard(
-                            name: name,
-                            scheme: scheme,
-                            weightData: data.weights[name],
-                            logResult: $vm.logResults[name]
-                        )
-                        .padding(.horizontal, 16)
-                    }
-                }
+                exerciseSection
 
-                // RPE + Comment
-                VStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("RPE")
-                                .font(.system(size: 11, weight: .bold)).tracking(2).foregroundColor(.gray)
-                            Spacer()
-                            Text("\(rpe, specifier: "%.1f")")
-                                .font(.system(size: 20, weight: .black)).foregroundColor(rpeColor(rpe))
-                        }
-                        Slider(value: $rpe, in: 1...10, step: 0.5).tint(rpeColor(rpe))
-                    }
-                    .padding(16).background(Color(hex: "11111c")).cornerRadius(14)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("COMMENTAIRE")
-                            .font(.system(size: 10, weight: .bold)).tracking(2).foregroundColor(.gray)
-                        TextField("Comment ça s'est passé ?", text: $comment, axis: .vertical)
-                            .font(.system(size: 14)).foregroundColor(.white).tint(.orange)
-                            .lineLimit(3, reservesSpace: true)
-                            .padding(12).background(Color(hex: "191926")).cornerRadius(10)
-                    }
-                    .padding(16).background(Color(hex: "11111c")).cornerRadius(14)
-                }
-                .padding(.horizontal, 16)
+                rpeCommentSection
 
                 Button(action: { showFinish = true }) {
                     HStack {
@@ -482,12 +485,16 @@ struct WorkoutSeanceView: View {
     // MARK: - Programme mutations
 
     private func loadInventory() async {
+        // Pre-initialize from cached data immediately so mutations work before network responds
+        let cached = data.fullProgram[data.localToday] ?? [:]
+        await MainActor.run { localProgram = cached }
+
         guard let url = URL(string: "https://training-os-rho.vercel.app/api/programme_data"),
-              let (data, _) = try? await URLSession.shared.data(from: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+              let (networkData, _) = try? await URLSession.shared.data(from: url),
+              let json = try? JSONSerialization.jsonObject(with: networkData) as? [String: Any]
         else { return }
-        let inv = (json["inventory"] as? [String]) ?? []
-        let prog = (json["full_program"] as? [String: [String: String]])?[self.data.localToday] ?? [:]
+        let inv  = (json["inventory"] as? [String]) ?? []
+        let prog = (json["full_program"] as? [String: [String: String]])?[data.localToday] ?? cached
         await MainActor.run {
             inventory    = inv
             localProgram = prog

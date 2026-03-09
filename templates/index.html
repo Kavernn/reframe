@@ -1029,8 +1029,14 @@ function localDateStr(d) {
 const todayStr = localDateStr();
 
 // ── HERO DATE ─────────────────────────────────────────
-document.getElementById('hero-date').textContent =
-  new Date().toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long' });
+function updateHeroDate() {
+  document.getElementById('hero-date').textContent =
+    new Date().toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+updateHeroDate();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') updateHeroDate();
+});
 
 // ── QUOTES SELON RPE VEILLE ──────────────────────────
 const quotes = {

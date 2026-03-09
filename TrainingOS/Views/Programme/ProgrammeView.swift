@@ -197,7 +197,7 @@ struct EditableSeanceProgramCard: View {
     }
 }
 
-private struct ExerciseRow: View {
+struct ExerciseRow: View {
     let name: String
     let scheme: String
     let color: Color
@@ -284,24 +284,30 @@ struct AddExerciseSheet: View {
     let onAdd: (String, String) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var search = ""
+    @State private var name = ""
     @State private var scheme = "3x8-12"
-    @State private var selected: String?
 
     private var filtered: [String] {
-        search.isEmpty ? inventory : inventory.filter { $0.localizedCaseInsensitiveContains(search) }
+        name.isEmpty ? inventory : inventory.filter { $0.localizedCaseInsensitiveContains(name) }
     }
+
+    private var canSave: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty && !scheme.isEmpty }
 
     var body: some View {
         NavigationView {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
                 VStack(spacing: 0) {
-                    // Search
+                    // Name field (also filters inventory)
                     HStack {
                         Image(systemName: "magnifyingglass").foregroundColor(.gray)
-                        TextField("Rechercher un exercice...", text: $search)
+                        TextField("Nom de l'exercice...", text: $name)
                             .foregroundColor(.white)
+                        if !name.isEmpty {
+                            Button { name = "" } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
+                            }
+                        }
                     }
                     .padding(10)
                     .background(Color(hex: "11111c"))
@@ -324,45 +330,46 @@ struct AddExerciseSheet: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
 
-                    // List
-                    List(filtered, id: \.self) { ex in
-                        Button {
-                            selected = ex
-                        } label: {
-                            HStack {
-                                Text(ex)
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 14))
-                                Spacer()
-                                if selected == ex {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.orange)
+                    // Inventory suggestions
+                    if !filtered.isEmpty {
+                        List(filtered, id: \.self) { ex in
+                            Button {
+                                name = ex
+                            } label: {
+                                HStack {
+                                    Text(ex)
+                                        .foregroundColor(.white)
+                                        .font(.system(size: 14))
+                                    Spacer()
+                                    if name == ex {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.orange)
+                                    }
                                 }
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
+                            .listRowBackground(Color(hex: "11111c"))
                         }
-                        .listRowBackground(Color(hex: "11111c"))
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle("Ajouter à \(seance)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
-                        .foregroundColor(.gray)
+                    Button("Annuler") { dismiss() }.foregroundColor(.gray)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Ajouter") {
-                        if let ex = selected, !scheme.isEmpty {
-                            onAdd(ex, scheme)
-                            dismiss()
-                        }
+                    Button("Enregistrer") {
+                        let trimmed = name.trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty, !scheme.isEmpty else { return }
+                        onAdd(trimmed, scheme)
+                        dismiss()
                     }
-                    .foregroundColor(selected != nil ? .orange : .gray)
-                    .disabled(selected == nil || scheme.isEmpty)
+                    .foregroundColor(canSave ? .orange : .gray)
+                    .disabled(!canSave)
                 }
             }
         }

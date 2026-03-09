@@ -5,6 +5,7 @@ struct DashboardView: View {
     @State private var deload: DeloadReport?
     @State private var moodDue: MoodDueStatus?
     @State private var showMoodSheet = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationView {
@@ -101,6 +102,17 @@ struct DashboardView: View {
             async let m = APIService.shared.checkMoodDue()
             deload  = try? await d
             moodDue = try? await m
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                Task {
+                    await api.fetchDashboard()
+                    async let d = APIService.shared.fetchDeloadData()
+                    async let m = APIService.shared.checkMoodDue()
+                    deload  = try? await d
+                    moodDue = try? await m
+                }
+            }
         }
         .sheet(isPresented: $showMoodSheet, onDismiss: {
             Task { moodDue = try? await APIService.shared.checkMoodDue() }
