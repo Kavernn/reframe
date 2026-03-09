@@ -327,6 +327,7 @@ struct WorkoutSeanceView: View {
     @State private var addTarget: SeanceName?
     @State private var editTarget: ExerciseTarget?
     @State private var isEditMode = false
+    @State private var showRestTimer = false
 
     private var exercises: [(String, String)] {
         localProgram.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
@@ -392,7 +393,8 @@ struct WorkoutSeanceView: View {
                     name: name,
                     scheme: scheme,
                     weightData: data.weights[name],
-                    logResult: $vm.logResults[name]
+                    logResult: $vm.logResults[name],
+                    onLogged: { showRestTimer = true }
                 )
                 .padding(.horizontal, 16)
             }
@@ -501,6 +503,11 @@ struct WorkoutSeanceView: View {
                 Task { await editExercise(oldName: target.exercise, newName: newName, scheme: newScheme) }
             }
         }
+        .sheet(isPresented: $showRestTimer) {
+            RestTimerSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
         .task { await loadInventory() }
     }
 
@@ -568,6 +575,7 @@ struct ExerciseCard: View {
     let scheme: String
     let weightData: WeightData?
     @Binding var logResult: ExerciseLogResult?
+    var onLogged: (() -> Void)? = nil
     @ObservedObject private var units = UnitSettings.shared
 
     @State private var weightStr = ""
@@ -722,6 +730,7 @@ struct ExerciseCard: View {
         let w = units.toStorage(displayW)
         logResult = ExerciseLogResult(name: name, weight: w, reps: repsStr)
         logStatus = .success(displayW)
+        onLogged?()
         Task { _ = try? await APIService.shared.logExercise(exercise: name, weight: w, reps: repsStr) }
     }
 }
@@ -996,6 +1005,110 @@ struct StepperRow: View {
             }
         }
         .padding(14).background(Color(hex: "11111c")).cornerRadius(12)
+    }
+}
+
+// MARK: - Rest Timer Sheet
+struct RestTimerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var totalSeconds = 90
+    @State private var remaining = 90
+    @State private var timerTask: Task<Void, Never>?
+
+    private var progress: Double {
+        totalSeconds > 0 ? Double(remaining) / Double(totalSeconds) : 0
+    }
+    private var timerColor: Color {
+        if progress > 0.5 { return .green }
+        if progress > 0.25 { return .yellow }
+        return .red
+    }
+
+    var body: some View {
+        ZStack {
+            Color(hex: "080810").ignoresSafeArea()
+            VStack(spacing: 28) {
+                Text("REPOS")
+                    .font(.system(size: 12, weight: .black))
+                    .tracking(4)
+                    .foregroundColor(.gray)
+                    .padding(.top, 8)
+
+                // Ring
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.07), lineWidth: 14)
+                        .frame(width: 180, height: 180)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(timerColor, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                        .frame(width: 180, height: 180)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.5), value: progress)
+                    Text(formatTime(remaining))
+                        .font(.system(size: 52, weight: .black, design: .rounded))
+                        .foregroundColor(timerColor)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                }
+
+                HStack(spacing: 16) {
+                    adjustButton(label: "−10s") { remaining = max(5, remaining - 10) }
+                    adjustButton(label: "+10s") { remaining += 10 }
+                }
+
+                Button {
+                    timerTask?.cancel()
+                    dismiss()
+                } label: {
+                    Text("Passer")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(14)
+                }
+                .padding(.horizontal, 32)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .onAppear {
+            remaining = totalSeconds
+            timerTask = Task { await runLoop() }
+        }
+        .onDisappear { timerTask?.cancel() }
+    }
+
+    private func adjustButton(label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundColor(timerColor)
+                .frame(width: 80, height: 40)
+                .background(timerColor.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func formatTime(_ s: Int) -> String {
+        "\(s / 60):\(String(format: "%02d", s % 60))"
+    }
+
+    @MainActor
+    private func runLoop() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { break }
+            if remaining > 0 {
+                remaining -= 1
+                if remaining == 0 {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    if !Task.isCancelled { dismiss() }
+                }
+            }
+        }
     }
 }
 

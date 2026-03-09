@@ -10,9 +10,8 @@ struct PSSView: View {
     @State private var isShortMode = false  // false = PSS-10, true = PSS-4
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AmbientBackground(color: .purple)
+        ZStack {
+            AmbientBackground(color: .purple)
 
                 if isLoading {
                     ProgressView().tint(.orange).scaleEffect(1.3)
@@ -85,7 +84,6 @@ struct PSSView: View {
                     await loadData()
                 }
             }
-        }
         .task { await loadData() }
     }
 
