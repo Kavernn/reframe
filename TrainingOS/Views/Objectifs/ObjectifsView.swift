@@ -22,6 +22,7 @@ struct ObjectifsView: View {
                     }
                 } else {
                     ScrollView(showsIndicators: false) {
+            .scrollDismissesKeyboard(.interactively)
                         VStack(spacing: 12) {
                             ForEach(Array(objectifs.enumerated()), id: \.1.id) { i, obj in
                                 ObjectifCard(obj: obj)

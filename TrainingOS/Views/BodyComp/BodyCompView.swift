@@ -21,6 +21,7 @@ struct BodyCompView: View {
                     ProgressView().tint(.orange).scaleEffect(1.3)
                 } else {
                     ScrollView(showsIndicators: false) {
+            .scrollDismissesKeyboard(.interactively)
                         VStack(spacing: 16) {
                             // Current weight card
                             VStack(spacing: 14) {

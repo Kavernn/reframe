@@ -1,5 +1,32 @@
 import SwiftUI
 
+// MARK: - Keyboard dismiss
+
+extension View {
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
+    }
+
+    /// Ajoute un bouton "Fermer ↓" dans la toolbar du clavier + dismiss au tap sur le fond.
+    func keyboardDismissable() -> some View {
+        self
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil)
+                    } label: {
+                        Label("Fermer", systemImage: "keyboard.chevron.compact.down")
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                }
+            }
+    }
+}
+
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)

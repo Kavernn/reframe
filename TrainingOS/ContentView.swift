@@ -39,6 +39,7 @@ struct ContentView: View {
                 }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .keyboardDismissable()
         .onAppear { configureTabBarAppearance() }
         // Offline banner
         .overlay(alignment: .top) {

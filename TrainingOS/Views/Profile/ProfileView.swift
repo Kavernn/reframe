@@ -72,6 +72,7 @@ struct ProfileView: View {
                 Spacer(minLength: 24)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var avatarSection: some View {
