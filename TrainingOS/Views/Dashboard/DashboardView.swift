@@ -538,17 +538,29 @@ struct HeatmapView: View {
     var activeDays: Int { last30Days.filter(\.1).count }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                SectionLabel(title: "30 DERNIERS JOURS")
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionLabel(title: "ASSIDUITÉ")
+                    Text("Jours d'entraînement complétés")
+                        .font(.system(size: 11))
+                        .foregroundColor(.gray)
+                }
                 Spacer()
-                Text("\(activeDays) / 30")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.orange)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(activeDays)")
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundColor(.orange)
+                    Text("sur 30 jours")
+                        .font(.system(size: 10))
+                        .foregroundColor(.gray)
+                }
             }
 
+            // Grid
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 10), spacing: 4) {
-                ForEach(Array(last30Days.enumerated()), id: \.0) { i, day in
+                ForEach(Array(last30Days.enumerated()), id: \.0) { _, day in
                     RoundedRectangle(cornerRadius: 3)
                         .fill(day.1 ? Color.orange : Color.white.opacity(0.04))
                         .frame(height: 22)
@@ -557,6 +569,25 @@ struct HeatmapView: View {
                                 .stroke(day.1 ? Color.orange.opacity(0.3) : Color.clear, lineWidth: 0.5)
                         )
                 }
+            }
+
+            // Légende
+            HStack(spacing: 14) {
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 2).fill(Color.orange)
+                        .frame(width: 12, height: 12)
+                    Text("Entraînement")
+                        .font(.system(size: 10)).foregroundColor(.gray)
+                }
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.08))
+                        .frame(width: 12, height: 12)
+                    Text("Repos / non loggé")
+                        .font(.system(size: 10)).foregroundColor(.gray)
+                }
+                Spacer()
+                Text("← passé   présent →")
+                    .font(.system(size: 9)).foregroundColor(.gray.opacity(0.5))
             }
         }
         .padding(16)
