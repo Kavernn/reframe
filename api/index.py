@@ -15,10 +15,39 @@ except ImportError:
 # ✅ Ajoute /api au path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# ── Timezone Montréal (gère l'heure d'été) ───────────────────
+def _now_mtl() -> datetime:
+    # 1. zoneinfo + tzdata
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/Montreal"))
+    except Exception:
+        pass
+    # 2. pytz
+    try:
+        import pytz
+        return datetime.now(pytz.timezone("America/Montreal"))
+    except Exception:
+        pass
+    # 3. Calcul DST manuel (aucune dépendance)
+    from datetime import timezone, timedelta as td
+    utc = datetime.now(timezone.utc)
+    def nth_sunday(y, m, n):
+        first = datetime(y, m, 1)
+        return first + td(days=(6 - first.weekday()) % 7 + 7 * (n - 1))
+    y = utc.year
+    dst_start = nth_sunday(y, 3,  2).replace(hour=7, tzinfo=timezone.utc)
+    dst_end   = nth_sunday(y, 11, 1).replace(hour=6, tzinfo=timezone.utc)
+    offset = -4 if dst_start <= utc < dst_end else -5
+    return utc.astimezone(timezone(td(hours=offset)))
+
+def _today_mtl() -> str:
+    return _now_mtl().strftime("%Y-%m-%d")
+
 from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 
-from planner      import get_today, get_week_schedule, get_suggested_weights_for_today, load_program, save_program
+from planner      import get_today, get_today_date, get_week_schedule, get_suggested_weights_for_today, load_program, save_program
 from hiit         import get_hiit_str
 from log_workout  import load_weights, save_weights, log_single_exercise
 from inventory    import load_inventory, save_inventory, calculate_plates
@@ -102,7 +131,7 @@ def index():
         }
 
     today_str  = get_today()
-    today_date = datetime.now().strftime("%Y-%m-%d")
+    today_date = _today_mtl()
     hiit_log   = load_hiit_log_local()
 
     if today_str in ['HIIT 1', 'HIIT 2']:
@@ -143,7 +172,7 @@ def nutrition():
         entries  = entries,
         totals   = totals,
         recent   = recent,
-        today    = datetime.now().strftime("%Y-%m-%d"),
+        today    = _today_mtl(),
     )
 
 
@@ -197,7 +226,7 @@ def seance():
     weights  = load_weights()
     today    = get_today()
     sessions = load_sessions()
-    today_date = datetime.now().strftime("%Y-%m-%d")
+    today_date = _today_mtl()
 
     if today in ['HIIT 1', 'HIIT 2', 'Yoga', 'Recovery']:
         return redirect(url_for('seance_speciale', session_type=today))
@@ -267,7 +296,7 @@ def seance_speciale(session_type):
     else:
         protocole = {"rounds": 10, "sprint_spd": 14.0, "jog_spd": 7.0, "duree": 25}
 
-    today_date = datetime.now().strftime("%Y-%m-%d")
+    today_date = _today_mtl()
     hiit_log   = load_hiit_log_local()
 
     if session_type in ['HIIT 1', 'HIIT 2']:
@@ -364,7 +393,7 @@ def objectifs():
 @app.route("/timer")
 def timer():
     return render_template("timer.html",
-        now  = datetime.now().strftime("%Y-%m-%d"),
+        now  = _today_mtl(),
         week = datetime.now().isocalendar()[1]
     )
 
@@ -376,7 +405,7 @@ def xp():
         sessions  = load_sessions(),
         hiit_log  = load_hiit_log_local(),
         inventory = load_inventory(),
-        now       = datetime.now().strftime("%Y-%m-%d"),
+        now       = _today_mtl(),
         week      = datetime.now().isocalendar()[1]
     )
 
@@ -388,7 +417,7 @@ def bodycomp():
         body_weight = bw,
         profile     = load_user_profile(),
         tendance    = get_tendance(bw) if bw else "Pas de données",
-        now         = datetime.now().strftime("%Y-%m-%d"),
+        now         = _today_mtl(),
         week        = datetime.now().isocalendar()[1]
     )
 
@@ -401,7 +430,7 @@ def intelligence():
         hiit_log  = load_hiit_log_local(),
         inventory = load_inventory(),
         program   = load_program(),
-        now       = datetime.now().strftime("%Y-%m-%d"),
+        now       = _today_mtl(),
         week      = datetime.now().isocalendar()[1]
     )
 
@@ -414,7 +443,7 @@ def planificateur():
         hiit_log     = load_hiit_log_local(),
         full_program = load_program(),
         schedule     = get_week_schedule(),
-        now          = datetime.now().strftime("%Y-%m-%d"),
+        now          = _today_mtl(),
         week         = datetime.now().isocalendar()[1]
     )
 
@@ -427,7 +456,7 @@ def stats():
         hiit_log    = load_hiit_log_local(),
         body_weight = load_body_weight(),
         inventory   = load_inventory(),
-        now         = datetime.now().strftime("%Y-%m-%d")
+        now         = _today_mtl()
     )
 
 
@@ -466,7 +495,7 @@ def api_log():
         onerm     = estimate_1rm(weight, reps)
 
         history_entry = {
-            "date":   datetime.now().strftime("%Y-%m-%d"),
+            "date":   _today_mtl(),
             "weight": round(weight, 1),
             "reps":   reps,
             "note":   f"+{new_w - weight:.1f}" if increase else "stagné",
@@ -602,19 +631,21 @@ def api_log_session():
     try:
         data           = request.get_json()
         # Utilise la date locale du client si fournie (évite le décalage UTC/EST)
-        today          = data.get("date") or datetime.now().strftime("%Y-%m-%d")
+        today          = data.get("date") or _today_mtl()
         rpe            = data.get("rpe")
         comment        = data.get("comment", "")
         exos           = data.get("exos", [])
         second_session = data.get("second_session", False)
+        duration_min   = data.get("duration_min")
+        energy_pre     = data.get("energy_pre")
 
         if session_exists(today) and not second_session:
             return jsonify({"error": "already_logged"}), 409
 
         if second_session:
-            log_second_session(today, rpe, comment, exos)
+            log_second_session(today, rpe, comment, exos, duration_min, energy_pre)
         else:
-            log_session(today, rpe, comment, exos)
+            log_session(today, rpe, comment, exos, duration_min, energy_pre)
 
         return jsonify({"success": True})
     except Exception as e:
@@ -625,7 +656,7 @@ def api_log_session():
 def api_log_hiit():
     data           = request.json
     week           = get_current_week()
-    today          = data.get("date") or datetime.now().strftime("%Y-%m-%d")
+    today          = data.get("date") or _today_mtl()
     session_type   = data.get("session_type", "HIIT")
     second_session = data.get("second_session", False)
     hiit_log       = load_hiit_log_local()
@@ -658,15 +689,25 @@ def api_log_hiit():
 @app.route("/api/delete_hiit", methods=["POST"])
 def api_delete_hiit():
     data     = request.json
-    index    = data.get("index")
     hiit_log = load_hiit_log_local()
 
-    if 0 <= index < len(hiit_log):
+    # Support deletion by index OR by date+session_type
+    index = data.get("index")
+    if index is not None and 0 <= index < len(hiit_log):
         hiit_log.pop(index)
         save_hiit_log_local(hiit_log)
         return jsonify({"success": True})
 
-    return jsonify({"error": "Index introuvable"}), 400
+    date         = data.get("date")
+    session_type = data.get("session_type")
+    if date and session_type:
+        before = len(hiit_log)
+        hiit_log = [e for e in hiit_log if not (e.get("date") == date and e.get("session_type") == session_type)]
+        if len(hiit_log) < before:
+            save_hiit_log_local(hiit_log)
+            return jsonify({"success": True})
+
+    return jsonify({"error": "Entrée introuvable"}), 400
 
 
 @app.route("/api/hiit/edit", methods=["POST"])
@@ -822,7 +863,9 @@ def api_programme():
 
 @app.route("/api/update_profile", methods=["POST"])
 def api_update_profile():
-    ok = save_user_profile(request.json)
+    existing = load_user_profile()
+    existing.update({k: v for k, v in request.json.items() if v is not None})
+    ok = save_user_profile(existing)
     if ok:
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Erreur sauvegarde Supabase"}), 500
@@ -870,15 +913,66 @@ def api_set_goal():
 def api_body_weight():
     try:
         data     = request.get_json()
-        poids    = float(data.get("poids", 0))
-        note     = data.get("note", "")
-        body_fat = data.get("body_fat")
-        if body_fat is not None:
-            body_fat = float(body_fat)
+        poids     = float(data.get("poids", 0))
+        note      = data.get("note", "")
+        body_fat  = data.get("body_fat")
+        waist_cm  = data.get("waist_cm")
+        arms_cm   = data.get("arms_cm")
+        chest_cm  = data.get("chest_cm")
+        thighs_cm = data.get("thighs_cm")
+        hips_cm   = data.get("hips_cm")
+        for key, val in [("body_fat", body_fat), ("waist_cm", waist_cm),
+                         ("arms_cm", arms_cm), ("chest_cm", chest_cm),
+                         ("thighs_cm", thighs_cm), ("hips_cm", hips_cm)]:
+            if val is not None:
+                locals()[key]  # already set
+        body_fat  = float(body_fat)  if body_fat  is not None else None
+        waist_cm  = float(waist_cm)  if waist_cm  is not None else None
+        arms_cm   = float(arms_cm)   if arms_cm   is not None else None
+        chest_cm  = float(chest_cm)  if chest_cm  is not None else None
+        thighs_cm = float(thighs_cm) if thighs_cm is not None else None
+        hips_cm   = float(hips_cm)   if hips_cm   is not None else None
         if not poids:
             return jsonify({"error": "Poids invalide"}), 400
-        log_body_weight(poids, note, body_fat)
+        log_body_weight(poids, note, body_fat, waist_cm, arms_cm, chest_cm, thighs_cm, hips_cm)
         return jsonify({"success": True, "poids": poids})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/body_weight/update", methods=["POST"])
+def api_update_body_weight():
+    try:
+        data      = request.get_json()
+        date      = data.get("date", "")
+        old_poids = float(data.get("old_poids", 0))
+        new_poids = float(data.get("poids", 0))
+        body_fat  = data.get("body_fat")
+        if body_fat is not None:
+            body_fat = float(body_fat)
+        note = data.get("note", "")
+        entries  = load_body_weight()
+        updated  = False
+        for e in entries:
+            if e.get("date") == date and float(e.get("poids", 0)) == old_poids:
+                e["poids"] = new_poids
+                e["note"]  = note
+                if body_fat is not None:
+                    e["body_fat"] = body_fat
+                elif "body_fat" in e:
+                    del e["body_fat"]
+                for field in ["waist_cm", "arms_cm", "chest_cm", "thighs_cm", "hips_cm"]:
+                    val = data.get(field)
+                    if val is not None:
+                        e[field] = float(val)
+                    elif field in e:
+                        del e[field]
+                updated = True
+                break
+        if not updated:
+            return jsonify({"success": False, "error": "Entrée introuvable"}), 404
+        set_json("body_weight", entries)
+        return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1026,6 +1120,673 @@ def service_worker():
     resp.headers['Pragma']        = 'no-cache'
     resp.headers['Expires']       = '0'
     return resp
+
+
+@app.route("/api/dashboard")
+def api_dashboard():
+    weights      = load_weights()
+    sessions     = load_sessions()
+    profile      = load_user_profile()
+    goals        = load_goals()
+    full_program = load_program()
+    hiit_log     = load_hiit_log_local()
+    today_str    = get_today()
+    today_date   = get_today_date()
+    schedule     = get_week_schedule()
+    suggestions  = get_suggested_weights_for_today(weights)
+    nutrition_totals = get_today_totals()
+
+    if today_str in ['HIIT 1', 'HIIT 2']:
+        already_logged_today = any(
+            e.get("date") == today_date and e.get("session_type") == today_str
+            for e in hiit_log
+        )
+    else:
+        already_logged_today = today_date in sessions
+
+    goals_progress = {}
+    for ex, goal in goals.items():
+        current = weights.get(ex, {}).get("current_weight", 0) or 0
+        goals_progress[ex] = {
+            "current":  current,
+            "goal":     goal["goal_weight"],
+            "achieved": goal.get("achieved", False),
+        }
+
+    return jsonify({
+        "today":               today_str,
+        "week":                get_current_week(),
+        "today_date":          today_date,
+        "already_logged_today": already_logged_today,
+        "schedule":            schedule,
+        "sessions":            sessions,
+        "suggestions":         suggestions,
+        "goals":               goals_progress,
+        "full_program":        full_program,
+        "nutrition_totals":    nutrition_totals,
+        "profile":             profile,
+    })
+
+
+# ── JSON GET endpoints ───────────────────────────────────────
+
+@app.route("/api/seance_data")
+def api_seance_data():
+    weights   = load_weights()
+    sessions  = load_sessions()
+    full_program = load_program()
+    today_str = get_today()
+    suggestions = get_suggested_weights_for_today(weights)
+    hiit_log  = load_hiit_log_local()
+    today_date = get_today_date()
+    schedule  = get_week_schedule()
+    inventory = load_inventory()
+
+    if today_str in ['HIIT 1', 'HIIT 2']:
+        already_logged = any(
+            e.get("date") == today_date and e.get("session_type") == today_str
+            for e in hiit_log
+        )
+    else:
+        already_logged = today_date in sessions
+
+    return jsonify({
+        "today": today_str,
+        "today_date": today_date,
+        "already_logged": already_logged,
+        "schedule": schedule,
+        "full_program": full_program,
+        "suggestions": suggestions,
+        "weights": weights,
+        "week": get_current_week(),
+    })
+
+
+@app.route("/api/stats_data")
+def api_stats_data():
+    weights      = load_weights()
+    sessions     = load_sessions()
+    hiit_log     = load_hiit_log_local()
+    body_weight  = load_body_weight()
+    recovery_log = load_recovery_log()
+    nutr_settings = load_nutrition_settings()
+    nutr_entries  = get_recent_days(7)
+    return jsonify({
+        "weights":          weights,
+        "sessions":         sessions,
+        "hiit_log":         hiit_log,
+        "body_weight":      body_weight,
+        "recovery_log":     recovery_log,
+        "nutrition_target": nutr_settings,
+        "nutrition_days":   nutr_entries,
+        "week":             get_current_week(),
+    })
+
+
+@app.route("/api/objectifs_data")
+def api_objectifs_data():
+    weights = load_weights()
+    goals   = load_goals()
+    goals_progress = {}
+    for ex, goal in goals.items():
+        current = weights.get(ex, {}).get("current_weight", 0) or 0
+        goals_progress[ex] = {
+            "current":  current,
+            "goal":     goal["goal_weight"],
+            "bar":      get_progress_bar(current, goal["goal_weight"]),
+            "achieved": goal.get("achieved", False),
+            "deadline": goal.get("deadline", ""),
+            "note":     goal.get("note", ""),
+        }
+    return jsonify({"goals": goals_progress})
+
+
+@app.route("/api/profil_data")
+def api_profil_data():
+    profile     = load_user_profile()
+    body_weight = load_body_weight()
+    tendance    = get_tendance(body_weight)
+    return jsonify({
+        "profile":     profile,
+        "body_weight": body_weight,
+        "tendance":    tendance,
+    })
+
+
+@app.route("/api/nutrition_data")
+def api_nutrition_data():
+    settings = load_nutrition_settings()
+    entries  = get_today_entries()
+    totals   = get_today_totals()
+    history  = get_recent_days(7)
+    return jsonify({
+        "settings": settings,
+        "entries":  entries,
+        "totals":   totals,
+        "history":  history,
+    })
+
+
+@app.route("/api/hiit_data")
+def api_hiit_data():
+    hiit_log = load_hiit_log_local()
+    total    = len(hiit_log)
+    avg_rpe  = round(sum(e.get("rpe", 0) for e in hiit_log) / total, 1) if total else 0
+    return jsonify({
+        "hiit_log": hiit_log,
+        "total":    total,
+        "avg_rpe":  avg_rpe,
+    })
+
+
+@app.route("/api/notes_data")
+def api_notes_data():
+    sessions = load_sessions()
+    total    = len(sessions)
+    rpes     = [s.get("rpe") for s in sessions.values() if s.get("rpe")]
+    avg_rpe  = round(sum(rpes) / len(rpes), 1) if rpes else 0
+    return jsonify({
+        "sessions": sessions,
+        "total":    total,
+        "avg_rpe":  avg_rpe,
+    })
+
+
+@app.route("/api/programme_data")
+def api_programme_data():
+    full_program = load_program()
+    schedule     = get_week_schedule()
+    inventory    = load_inventory()
+    return jsonify({
+        "full_program": full_program,
+        "schedule":     schedule,
+        "inventory":    [ex for ex in inventory] if isinstance(inventory, list) else list(inventory.keys()),
+    })
+
+
+@app.route("/api/inventaire_data")
+def api_inventaire_data():
+    inventory = load_inventory()
+    return jsonify({"inventory": inventory})
+
+
+@app.route("/api/historique_data")
+def api_historique_data():
+    weights  = load_weights()
+    sessions = load_sessions()
+    hiit_log = load_hiit_log_local()
+
+    ex_by_date = {}
+    for ex, data in weights.items():
+        for entry in data.get("history", []):
+            d = entry.get("date")
+            if not d:
+                continue
+            ex_by_date.setdefault(d, []).append({
+                "exercise": ex,
+                "weight":   entry.get("weight", 0),
+                "reps":     entry.get("reps", ""),
+            })
+
+    all_dates = set(sessions.keys()) | set(ex_by_date.keys())
+    session_list = []
+    for d in sorted(all_dates, reverse=True):
+        s = sessions.get(d, {})
+        session_list.append({
+            "date":    d,
+            "rpe":     s.get("rpe"),
+            "comment": s.get("comment", ""),
+            "exos":    ex_by_date.get(d, []),
+        })
+
+    hiit_list = sorted(hiit_log, key=lambda x: x.get("date", ""), reverse=True)
+    return jsonify({
+        "session_list": session_list[:60],
+        "hiit_list":    hiit_list[:30],
+    })
+
+
+@app.route("/api/bodycomp_data")
+def api_bodycomp_data():
+    body_weight = load_body_weight()
+    profile     = load_user_profile()
+    tendance    = get_tendance(body_weight)
+    return jsonify({
+        "body_weight": body_weight,
+        "profile":     profile,
+        "tendance":    tendance,
+    })
+
+
+# ── Cardio ───────────────────────────────────────────────────
+
+def load_cardio_log():
+    return get_json("cardio_log") or []
+
+def save_cardio_log(data):
+    set_json("cardio_log", data)
+
+@app.route("/api/cardio_data")
+def api_cardio_data():
+    log = load_cardio_log()
+    return jsonify({"cardio_log": sorted(log, key=lambda x: x.get("date", ""), reverse=True)})
+
+@app.route("/api/log_cardio", methods=["POST"])
+def api_log_cardio():
+    data = request.get_json()
+    log  = load_cardio_log()
+    entry = {
+        "date":         data.get("date", date.today().isoformat()),
+        "type":         data.get("type", "course"),
+        "duration_min": data.get("duration_min"),
+        "distance_km":  data.get("distance_km"),
+        "avg_pace":     data.get("avg_pace"),
+        "avg_hr":       data.get("avg_hr"),
+        "cadence":      data.get("cadence"),
+        "calories":     data.get("calories"),
+        "rpe":          data.get("rpe"),
+        "notes":        data.get("notes", ""),
+    }
+    log.insert(0, entry)
+    save_cardio_log(log)
+    return jsonify({"ok": True})
+
+@app.route("/api/delete_cardio", methods=["POST"])
+def api_delete_cardio():
+    data = request.get_json()
+    d    = data.get("date")
+    t    = data.get("type")
+    log  = load_cardio_log()
+    log  = [e for e in log if not (e.get("date") == d and e.get("type") == t)]
+    save_cardio_log(log)
+    return jsonify({"ok": True})
+
+
+# ── Récupération ──────────────────────────────────────────────
+
+def load_recovery_log():
+    return get_json("recovery_log") or []
+
+def save_recovery_log(data):
+    set_json("recovery_log", data)
+
+@app.route("/api/recovery_data")
+def api_recovery_data():
+    log = load_recovery_log()
+    return jsonify({"recovery_log": sorted(log, key=lambda x: x.get("date", ""), reverse=True)})
+
+@app.route("/api/log_recovery", methods=["POST"])
+def api_log_recovery():
+    data = request.get_json()
+    log  = load_recovery_log()
+    entry = {
+        "date":          data.get("date", date.today().isoformat()),
+        "sleep_hours":   data.get("sleep_hours"),
+        "sleep_quality": data.get("sleep_quality"),
+        "resting_hr":    data.get("resting_hr"),
+        "hrv":           data.get("hrv"),
+        "steps":         data.get("steps"),
+        "soreness":      data.get("soreness"),
+        "notes":         data.get("notes", ""),
+    }
+    idx = next((i for i, e in enumerate(log) if e.get("date") == entry["date"]), None)
+    if idx is not None:
+        log[idx] = entry
+    else:
+        log.insert(0, entry)
+    save_recovery_log(log)
+    return jsonify({"ok": True})
+
+@app.route("/api/delete_recovery", methods=["POST"])
+def api_delete_recovery():
+    data = request.get_json()
+    d    = data.get("date")
+    log  = load_recovery_log()
+    log  = [e for e in log if e.get("date") != d]
+    save_recovery_log(log)
+    return jsonify({"ok": True})
+
+
+# ── Health Dashboard ─────────────────────────────────────────
+
+from health_data import get_daily_health_summary, get_weekly_health_summary
+
+@app.route("/api/health/daily_summary")
+def api_health_daily_summary():
+    """
+    Résumé santé unifié pour un jour donné.
+    ?date=YYYY-MM-DD  (défaut : aujourd'hui)
+    """
+    target_date = request.args.get("date")
+    return jsonify(get_daily_health_summary(target_date))
+
+
+@app.route("/api/health/weekly_summary")
+def api_health_weekly_summary():
+    """
+    Résumés des N derniers jours (du plus récent au plus ancien).
+    ?days=7  (défaut : 7)
+    """
+    try:
+        days = int(request.args.get("days", 7))
+        days = max(1, min(days, 90))
+    except ValueError:
+        days = 7
+    return jsonify(get_weekly_health_summary(days))
+
+
+# ── Life Stress Engine ────────────────────────────────────────
+
+from life_stress_engine import get_life_stress_score, get_recent_life_stress_trend, refresh_life_stress_score
+
+@app.route("/api/life_stress/score")
+def api_life_stress_score():
+    """
+    Life Stress Score pour un jour donné (0 = surmenage, 100 = récupération optimale).
+    ?date=YYYY-MM-DD  (défaut : aujourd'hui)
+    ?refresh=true     (force le recalcul)
+    """
+    target_date = request.args.get("date")
+    force_refresh = request.args.get("refresh", "false").lower() == "true"
+    if force_refresh:
+        return jsonify(refresh_life_stress_score(target_date))
+    return jsonify(get_life_stress_score(target_date))
+
+
+@app.route("/api/life_stress/trend")
+def api_life_stress_trend():
+    """
+    Tendance LSS sur les N derniers jours (du plus récent au plus ancien).
+    ?days=7  (défaut : 7, max : 90)
+    """
+    try:
+        days = int(request.args.get("days", 7))
+        days = max(1, min(days, 90))
+    except ValueError:
+        days = 7
+    return jsonify(get_recent_life_stress_trend(days))
+
+
+# ── PSS — Perceived Stress Scale ─────────────────────────────
+
+from pss import (
+    save_pss_record, get_history as pss_get_history,
+    check_due as pss_check_due, get_questions
+)
+
+@app.route("/api/pss/questions")
+def api_pss_questions():
+    """
+    Retourne les questions PSS à afficher.
+    ?short=true  → PSS-4 (4 questions, défaut : false)
+    """
+    is_short = request.args.get("short", "false").lower() == "true"
+    return jsonify(get_questions(is_short))
+
+
+@app.route("/api/pss/submit", methods=["POST"])
+def api_pss_submit():
+    """
+    Soumet un questionnaire PSS et persiste le résultat.
+
+    Body JSON :
+    {
+      "responses":       [int × 10 ou × 4],
+      "is_short":        bool (défaut false),
+      "notes":           str (optionnel),
+      "triggers":        [str] (optionnel, max 2),
+      "trigger_ratings": { "travail": 3 } (optionnel)
+    }
+    """
+    data = request.get_json(silent=True) or {}
+    responses = data.get("responses")
+    if not responses:
+        return jsonify({"error": "responses requis"}), 400
+
+    try:
+        record = save_pss_record(
+            responses       = [int(r) for r in responses],
+            is_short        = bool(data.get("is_short", False)),
+            notes           = data.get("notes"),
+            triggers        = data.get("triggers"),
+            trigger_ratings = data.get("trigger_ratings"),
+        )
+        return jsonify(record), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 422
+
+
+@app.route("/api/pss/history")
+def api_pss_history():
+    """
+    Historique des enregistrements PSS.
+    ?type=full|short  (défaut : tous)
+    ?limit=20
+    """
+    pss_type = request.args.get("type")
+    try:
+        limit = int(request.args.get("limit", 20))
+    except ValueError:
+        limit = 20
+    return jsonify(pss_get_history(pss_type, limit))
+
+
+@app.route("/api/pss/check_due")
+def api_pss_check_due():
+    """
+    Vérifie si un test PSS est dû.
+    ?type=full|short  (défaut : full)
+    """
+    pss_type = request.args.get("type", "full")
+    return jsonify(pss_check_due(pss_type))
+
+
+# ── Santé Mentale ────────────────────────────────────────────
+
+from mood import (
+    EMOTIONS, save_mood_entry, get_history as mood_get_history,
+    get_today_entry as mood_today_entry, check_due as mood_check_due,
+    generate_insights as mood_insights,
+)
+from journal import (
+    get_today_prompt, save_entry as journal_save,
+    get_entries, search_entries, get_entry_count,
+)
+from breathwork import (
+    TECHNIQUES, log_session as bw_log,
+    get_history as bw_history, get_stats as bw_stats_fn,
+)
+from self_care import (
+    get_habits, add_habit, delete_habit,
+    log_today as sc_log, get_today_status, get_streaks,
+)
+from mental_health_dashboard import get_summary as mh_summary
+
+# — Mood —
+
+@app.route("/api/mood/emotions")
+def api_mood_emotions():
+    return jsonify(EMOTIONS)
+
+
+@app.route("/api/mood/log", methods=["POST"])
+def api_mood_log():
+    data = request.get_json(silent=True) or {}
+    score = data.get("score")
+    if score is None:
+        return jsonify({"error": "score requis (1-10)"}), 400
+    try:
+        entry = save_mood_entry(
+            score    = int(score),
+            emotions = data.get("emotions", []),
+            notes    = data.get("notes"),
+            triggers = data.get("triggers"),
+        )
+        return jsonify(entry), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 422
+
+
+@app.route("/api/mood/history")
+def api_mood_history():
+    try:
+        days = int(request.args.get("days", 30))
+    except ValueError:
+        days = 30
+    return jsonify(mood_get_history(days))
+
+
+@app.route("/api/mood/today")
+def api_mood_today():
+    entry = mood_today_entry()
+    return jsonify(entry) if entry else jsonify(None)
+
+
+@app.route("/api/mood/check_due")
+def api_mood_check_due():
+    return jsonify(mood_check_due())
+
+
+@app.route("/api/mood/insights")
+def api_mood_insights():
+    try:
+        days = int(request.args.get("days", 30))
+    except ValueError:
+        days = 30
+    return jsonify(mood_insights(days))
+
+
+# — Journal —
+
+@app.route("/api/journal/today_prompt")
+def api_journal_today_prompt():
+    return jsonify({"prompt": get_today_prompt()})
+
+
+@app.route("/api/journal/save", methods=["POST"])
+def api_journal_save():
+    data = request.get_json(silent=True) or {}
+    prompt  = data.get("prompt", "")
+    content = data.get("content", "")
+    try:
+        entry = journal_save(prompt, content)
+        return jsonify(entry), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 422
+
+
+@app.route("/api/journal/entries")
+def api_journal_entries():
+    try:
+        limit = int(request.args.get("limit", 30))
+    except ValueError:
+        limit = 30
+    return jsonify(get_entries(limit))
+
+
+@app.route("/api/journal/search")
+def api_journal_search():
+    q = request.args.get("q", "")
+    return jsonify(search_entries(q))
+
+
+# — Breathwork —
+
+@app.route("/api/breathwork/techniques")
+def api_breathwork_techniques():
+    return jsonify(TECHNIQUES)
+
+
+@app.route("/api/breathwork/log", methods=["POST"])
+def api_breathwork_log():
+    data = request.get_json(silent=True) or {}
+    technique_id = data.get("technique_id")
+    if not technique_id:
+        return jsonify({"error": "technique_id requis"}), 400
+    try:
+        session = bw_log(
+            technique_id = technique_id,
+            duration_sec = int(data.get("duration_sec", 0)),
+            cycles       = int(data.get("cycles", 0)),
+        )
+        return jsonify(session), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 422
+
+
+@app.route("/api/breathwork/history")
+def api_breathwork_history():
+    try:
+        days = int(request.args.get("days", 30))
+    except ValueError:
+        days = 30
+    return jsonify(bw_history(days))
+
+
+@app.route("/api/breathwork/stats")
+def api_breathwork_stats():
+    try:
+        days = int(request.args.get("days", 7))
+    except ValueError:
+        days = 7
+    return jsonify(bw_stats_fn(days))
+
+
+# — Self-Care Habits —
+
+@app.route("/api/self_care/habits")
+def api_self_care_habits():
+    return jsonify(get_habits())
+
+
+@app.route("/api/self_care/habits", methods=["POST"])
+def api_self_care_habits_add():
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name requis"}), 400
+    habit = add_habit(
+        name     = name,
+        icon     = data.get("icon", "star.fill"),
+        category = data.get("category", "mental"),
+    )
+    return jsonify(habit), 201
+
+
+@app.route("/api/self_care/habits/<habit_id>", methods=["DELETE"])
+def api_self_care_habits_delete(habit_id: str):
+    deleted = delete_habit(habit_id)
+    if not deleted:
+        return jsonify({"error": "Habitude introuvable"}), 404
+    return jsonify({"deleted": habit_id})
+
+
+@app.route("/api/self_care/log", methods=["POST"])
+def api_self_care_log():
+    data = request.get_json(silent=True) or {}
+    habit_ids = data.get("habit_ids", [])
+    return jsonify(sc_log(habit_ids))
+
+
+@app.route("/api/self_care/today")
+def api_self_care_today():
+    return jsonify(get_today_status())
+
+
+@app.route("/api/self_care/streaks")
+def api_self_care_streaks():
+    return jsonify(get_streaks())
+
+
+# — Dashboard santé mentale —
+
+@app.route("/api/mental_health/summary")
+def api_mental_health_summary():
+    try:
+        days = int(request.args.get("days", 7))
+    except ValueError:
+        days = 7
+    return jsonify(mh_summary(days))
 
 
 # ── Lancement local ──────────────────────────────────────────

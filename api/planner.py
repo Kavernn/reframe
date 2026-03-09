@@ -53,10 +53,56 @@ def save_program(program: dict):
     set_json("program", program)
 
 
-def get_today() -> str:
+def _eastern_offset_hours(utc_dt: datetime) -> int:
+    """
+    Retourne -4 (EDT) ou -5 (EST) selon les règles DST de l'Est canadien :
+      - Début EDT : 2e dimanche de mars à 07:00 UTC
+      - Fin EDT   : 1er dimanche de novembre à 06:00 UTC
+    Calcul purement Python, aucune dépendance.
+    """
+    from datetime import timedelta as td
+
+    def nth_sunday(year: int, month: int, n: int) -> datetime:
+        """Retourne le n-ième dimanche du mois."""
+        first = datetime(year, month, 1)
+        days_to_sunday = (6 - first.weekday()) % 7
+        return first + td(days=days_to_sunday + 7 * (n - 1))
+
+    y = utc_dt.year
+    from datetime import timezone
+    utc = timezone.utc
+    dst_start = nth_sunday(y, 3,  2).replace(hour=7,  tzinfo=utc)   # 2h EST → 7h UTC
+    dst_end   = nth_sunday(y, 11, 1).replace(hour=6,  tzinfo=utc)   # 2h EDT → 6h UTC
+    return -4 if dst_start <= utc_dt < dst_end else -5
+
+
+def _montreal_now() -> datetime:
+    """datetime courante en heure de Montréal (gère l'heure d'été automatiquement)."""
+    # 1. zoneinfo + tzdata (Python 3.9+, nécessite le package tzdata sur Vercel)
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/Montreal"))
+    except Exception:
+        pass
+    # 2. pytz (si installé)
+    try:
+        import pytz
+        return datetime.now(pytz.timezone("America/Montreal"))
+    except Exception:
+        pass
+    # 3. Fallback sans dépendance : calcul DST manuel
     from datetime import timezone, timedelta
-    EST = timezone(timedelta(hours=-5))
-    return SCHEDULE[datetime.now(EST).weekday()]
+    utc_now = datetime.now(timezone.utc)
+    offset  = _eastern_offset_hours(utc_now)
+    return utc_now.astimezone(timezone(timedelta(hours=offset)))
+
+
+def get_today() -> str:
+    return SCHEDULE[_montreal_now().weekday()]
+
+
+def get_today_date() -> str:
+    return _montreal_now().strftime("%Y-%m-%d")
 
 
 def get_week_schedule() -> Dict[str, str]:
