@@ -36,6 +36,11 @@ struct ContentView: View {
                 .toolbar(.hidden, for: .tabBar)
         }
         .ignoresSafeArea(edges: .bottom)
+        // Réserve l'espace pour la tab bar : les ScrollView/List ajoutent automatiquement
+        // le padding en bas sans qu'on modifie chaque vue enfant.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: tabBarClearance)
+        }
         // Détection de scroll via window-level pan gesture (aucune modif des vues enfant)
         .background(ScrollDirectionWatcher(tabState: tabState).allowsHitTesting(false))
         .overlay(alignment: .bottom) {
@@ -69,6 +74,9 @@ struct ContentView: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { keyboardUp = false }
         }
     }
+
+    // Espace réservé au bas pour la tab bar flottante (au-dessus du home indicator)
+    private var tabBarClearance: CGFloat { 72 }
 
     private var safeAreaBottom: CGFloat {
         UIApplication.shared.connectedScenes
@@ -119,13 +127,13 @@ struct ScrollDirectionWatcher: UIViewRepresentable {
         @objc func handlePan(_ g: UIPanGestureRecognizer) {
             let vel = g.velocity(in: g.view)
             // Ignore les gestes principalement horizontaux (swipe entre pages, etc.)
-            guard abs(vel.y) > abs(vel.x) else { return }
+            guard abs(vel.y) > abs(vel.x) * 0.5 else { return }
 
             switch g.state {
             case .changed:
                 resetTask?.cancel()
-                let down = vel.y < -80
-                let up   = vel.y >  80
+                let down = vel.y < -30
+                let up   = vel.y >  30
                 if down || up {
                     DispatchQueue.main.async {
                         withAnimation(.easeInOut(duration: 0.2)) {
