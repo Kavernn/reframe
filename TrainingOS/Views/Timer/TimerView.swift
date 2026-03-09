@@ -1,5 +1,6 @@
 import SwiftUI
 import AudioToolbox
+import AVFoundation
 
 struct TimerView: View {
     @State private var workSecs = 40
@@ -238,9 +239,15 @@ struct TimerView: View {
         }
         remaining -= 1
         if remaining <= 3 && remaining > 0 {
-            AudioServicesPlaySystemSound(1057) // Tink — 3, 2, 1
+            playBeep()
         }
         if remaining <= 0 { advance() }
+    }
+
+    private func playBeep() {
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: .mixWithOthers)
+        try? AVAudioSession.sharedInstance().setActive(true)
+        AudioServicesPlaySystemSound(1057)
     }
 
     private func advance() {

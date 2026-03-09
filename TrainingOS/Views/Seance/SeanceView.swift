@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import AudioToolbox
+import AVFoundation
 
 struct SeanceView: View {
     @StateObject private var vm = SeanceViewModel()
@@ -1156,13 +1157,19 @@ struct RestTimerSheet: View {
             if remaining > 0 {
                 remaining -= 1
                 if remaining <= 3 && remaining > 0 {
-                    AudioServicesPlaySystemSound(1057) // Tink — 3, 2, 1
+                    playBeep()
                 } else if remaining == 0 {
                     isRunning = false
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 }
             }
         }
+    }
+
+    private func playBeep() {
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: .mixWithOthers)
+        try? AVAudioSession.sharedInstance().setActive(true)
+        AudioServicesPlaySystemSound(1057)
     }
 }
 
