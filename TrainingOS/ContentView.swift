@@ -69,7 +69,7 @@ struct ContentView: View {
         }
     }
 
-    private var tabBarHeight: CGFloat { showBar ? 80 : 0 }
+    private var tabBarHeight: CGFloat { showBar ? (safeAreaBottom + 80) : 0 }
 
     private var safeAreaBottom: CGFloat {
         UIApplication.shared.connectedScenes
