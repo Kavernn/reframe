@@ -1,6 +1,5 @@
 import SwiftUI
 import Combine
-import AudioToolbox
 import AVFoundation
 
 struct SeanceView: View {
@@ -1025,6 +1024,7 @@ struct RestTimerSheet: View {
     @State private var remaining = 120
     @State private var isRunning = false
     @State private var timerTask: Task<Void, Never>?
+    @State private var beepPlayer: AVAudioPlayer?
 
     private var progress: Double {
         totalSeconds > 0 ? Double(remaining) / Double(totalSeconds) : 0
@@ -1157,21 +1157,23 @@ struct RestTimerSheet: View {
             if remaining > 0 {
                 remaining -= 1
                 if remaining <= 3 && remaining > 0 {
-                    playBeep()
+                    playBeep(hz: 880)
+                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
                 } else if remaining == 0 {
                     isRunning = false
+                    playBeep(hz: 1200)
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 }
             }
         }
     }
 
-    private func playBeep() {
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: .mixWithOthers)
-        try? AVAudioSession.sharedInstance().setActive(true)
-        AudioServicesPlaySystemSound(1057)
+    private func playBeep(hz: Double) {
+        beepPlayer = makeBeep(hz: hz, duration: hz > 1000 ? 0.35 : 0.12)
+        beepPlayer?.play()
     }
 }
+
 
 // MARK: - Error View
 struct ErrorView: View {

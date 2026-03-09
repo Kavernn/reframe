@@ -1,5 +1,4 @@
 import SwiftUI
-import AudioToolbox
 import AVFoundation
 
 struct TimerView: View {
@@ -12,6 +11,7 @@ struct TimerView: View {
     @State private var remaining = 40
     @State private var running = false
     @State private var timerTask: Task<Void, Never>? = nil
+    @State private var beepPlayer: AVAudioPlayer?
 
     enum TimerPhase { case idle, prepare, work, rest, done }
 
@@ -239,15 +239,11 @@ struct TimerView: View {
         }
         remaining -= 1
         if remaining <= 3 && remaining > 0 {
-            playBeep()
+            beepPlayer = makeBeep(hz: 880, duration: 0.12)
+            beepPlayer?.play()
+            UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
         }
         if remaining <= 0 { advance() }
-    }
-
-    private func playBeep() {
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: .mixWithOthers)
-        try? AVAudioSession.sharedInstance().setActive(true)
-        AudioServicesPlaySystemSound(1057)
     }
 
     private func advance() {
