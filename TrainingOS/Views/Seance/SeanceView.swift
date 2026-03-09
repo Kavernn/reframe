@@ -321,9 +321,17 @@ struct WorkoutSeanceView: View {
     @State private var comment = ""
     @State private var showFinish = false
 
+    // Programme edit
+    @State private var localProgram: [String: String] = [:]
+    @State private var inventory: [String] = []
+    @State private var addTarget: SeanceName?
+    @State private var editTarget: ExerciseTarget?
+    @State private var isEditMode = false
+
     private var exercises: [(String, String)] {
-        guard let program = data.fullProgram[data.localToday] else { return [] }
-        return program.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+        localProgram.isEmpty
+            ? (data.fullProgram[data.localToday] ?? [:]).map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+            : localProgram.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
     }
 
     var body: some View {
@@ -344,18 +352,57 @@ struct WorkoutSeanceView: View {
                     Text("\(exercises.count) exercices")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
+                    Button {
+                        withAnimation { isEditMode.toggle() }
+                    } label: {
+                        Image(systemName: isEditMode ? "checkmark.circle.fill" : "pencil.circle")
+                            .font(.system(size: 20))
+                            .foregroundColor(isEditMode ? .green : .orange)
+                    }
+                    .padding(.leading, 8)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
 
-                ForEach(exercises, id: \.0) { name, scheme in
-                    ExerciseCard(
-                        name: name,
-                        scheme: scheme,
-                        weightData: data.weights[name],
-                        logResult: $vm.logResults[name]
-                    )
+                if isEditMode {
+                    // ── Mode édition : swipe-to-delete + add ─────────────
+                    VStack(spacing: 0) {
+                        ForEach(exercises, id: \.0) { name, scheme in
+                            ExerciseRow(
+                                name: name,
+                                scheme: scheme,
+                                color: .orange,
+                                onTap: { editTarget = ExerciseTarget(seance: data.localToday, exercise: name, scheme: scheme) },
+                                onDelete: { Task { await deleteExercise(name) } }
+                            )
+                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 16)
+                        }
+                        Button { addTarget = SeanceName(id: data.localToday) } label: {
+                            HStack {
+                                Image(systemName: "plus.circle.fill").foregroundColor(.orange)
+                                Text("Ajouter un exercice")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(.orange)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
+                    }
+                    .background(Color(hex: "11111c"))
+                    .cornerRadius(14)
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.2), lineWidth: 1))
                     .padding(.horizontal, 16)
+                } else {
+                    // ── Mode normal : ExerciseCards ──────────────────────
+                    ForEach(exercises, id: \.0) { name, scheme in
+                        ExerciseCard(
+                            name: name,
+                            scheme: scheme,
+                            weightData: data.weights[name],
+                            logResult: $vm.logResults[name]
+                        )
+                        .padding(.horizontal, 16)
+                    }
                 }
 
                 // RPE + Comment
@@ -415,10 +462,60 @@ struct WorkoutSeanceView: View {
         } message: {
             Text(vm.submitError ?? "")
         }
+        .sheet(item: $addTarget) { sn in
+            AddExerciseSheet(seance: sn.id, inventory: inventory) { ex, scheme in
+                Task { await addExercise(ex, scheme: scheme) }
+            }
+        }
+        .sheet(item: $editTarget) { target in
+            EditSchemeSheet(target: target) { newScheme in
+                Task { await editScheme(target.exercise, scheme: newScheme) }
+            }
+        }
+        .task { await loadInventory() }
     }
 
     private func rpeColor(_ v: Double) -> Color {
         if v <= 4 { return .green }; if v <= 6 { return .yellow }; if v <= 8 { return .orange }; return .red
+    }
+
+    // MARK: - Programme mutations
+
+    private func loadInventory() async {
+        guard let url = URL(string: "https://training-os-rho.vercel.app/api/programme_data"),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return }
+        let inv = (json["inventory"] as? [String]) ?? []
+        let prog = (json["full_program"] as? [String: [String: String]])?[self.data.localToday] ?? [:]
+        await MainActor.run {
+            inventory    = inv
+            localProgram = prog
+        }
+    }
+
+    private func postProgramme(_ body: [String: Any]) async {
+        guard let url = URL(string: "https://training-os-rho.vercel.app/api/programme") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    private func addExercise(_ name: String, scheme: String) async {
+        await postProgramme(["action": "add", "jour": data.localToday, "exercise": name, "scheme": scheme])
+        await MainActor.run { localProgram[name] = scheme }
+    }
+
+    private func deleteExercise(_ name: String) async {
+        await postProgramme(["action": "remove", "jour": data.localToday, "exercise": name])
+        await MainActor.run { localProgram.removeValue(forKey: name) }
+    }
+
+    private func editScheme(_ name: String, scheme: String) async {
+        await postProgramme(["action": "scheme", "jour": data.localToday, "exercise": name, "scheme": scheme])
+        await MainActor.run { localProgram[name] = scheme }
     }
 }
 
