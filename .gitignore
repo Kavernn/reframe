@@ -45,3 +45,6 @@ node_modules/
 # Retire ces lignes si tu veux versionner les projets natifs Xcode/Android Studio
 # ios/
 # android/
+# Xcode user data
+*.xcuserstate
+xcuserdata/
