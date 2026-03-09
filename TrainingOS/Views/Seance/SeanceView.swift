@@ -497,8 +497,8 @@ struct WorkoutSeanceView: View {
             }
         }
         .sheet(item: $editTarget) { target in
-            EditSchemeSheet(target: target) { newScheme in
-                Task { await editScheme(target.exercise, scheme: newScheme) }
+            EditSchemeSheet(target: target) { newName, newScheme in
+                Task { await editExercise(oldName: target.exercise, newName: newName, scheme: newScheme) }
             }
         }
         .task { await loadInventory() }
@@ -546,9 +546,18 @@ struct WorkoutSeanceView: View {
         await MainActor.run { localProgram.removeValue(forKey: name) }
     }
 
-    private func editScheme(_ name: String, scheme: String) async {
-        await postProgramme(["action": "scheme", "jour": data.localToday, "exercise": name, "scheme": scheme])
-        await MainActor.run { localProgram[name] = scheme }
+    private func editExercise(oldName: String, newName: String, scheme: String) async {
+        if oldName != newName {
+            await postProgramme(["action": "remove", "jour": data.localToday, "exercise": oldName])
+            await postProgramme(["action": "add", "jour": data.localToday, "exercise": newName, "scheme": scheme])
+            await MainActor.run {
+                localProgram.removeValue(forKey: oldName)
+                localProgram[newName] = scheme
+            }
+        } else {
+            await postProgramme(["action": "scheme", "jour": data.localToday, "exercise": oldName, "scheme": scheme])
+            await MainActor.run { localProgram[oldName] = scheme }
+        }
     }
 }
 

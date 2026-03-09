@@ -55,8 +55,8 @@ struct ProgrammeView: View {
                 }
             }
             .sheet(item: $editTarget) { target in
-                EditSchemeSheet(target: target) { newScheme in
-                    Task { await editScheme(seance: target.seance, exercise: target.exercise, scheme: newScheme) }
+                EditSchemeSheet(target: target) { newName, newScheme in
+                    Task { await editExercise(seance: target.seance, oldName: target.exercise, newName: newName, scheme: newScheme) }
                 }
             }
         }
@@ -98,9 +98,18 @@ struct ProgrammeView: View {
         await MainActor.run { fullProgram[seance]?.removeValue(forKey: exercise) }
     }
 
-    private func editScheme(seance: String, exercise: String, scheme: String) async {
-        await postProgramme(["action": "scheme", "jour": seance, "exercise": exercise, "scheme": scheme])
-        await MainActor.run { fullProgram[seance]?[exercise] = scheme }
+    private func editExercise(seance: String, oldName: String, newName: String, scheme: String) async {
+        if oldName != newName {
+            await postProgramme(["action": "remove", "jour": seance, "exercise": oldName])
+            await postProgramme(["action": "add", "jour": seance, "exercise": newName, "scheme": scheme])
+            await MainActor.run {
+                fullProgram[seance]?.removeValue(forKey: oldName)
+                fullProgram[seance, default: [:]][newName] = scheme
+            }
+        } else {
+            await postProgramme(["action": "scheme", "jour": seance, "exercise": oldName, "scheme": scheme])
+            await MainActor.run { fullProgram[seance]?[oldName] = scheme }
+        }
     }
 }
 
@@ -380,26 +389,33 @@ struct AddExerciseSheet: View {
 
 struct EditSchemeSheet: View {
     let target: ExerciseTarget
-    let onSave: (String) -> Void
+    let onSave: (String, String) -> Void  // (newName, newScheme)
 
     @Environment(\.dismiss) private var dismiss
+    @State private var name: String = ""
     @State private var scheme: String = ""
+
+    private var canSave: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty && !scheme.isEmpty }
 
     var body: some View {
         NavigationView {
             ZStack {
                 Color(hex: "080810").ignoresSafeArea()
-                VStack(spacing: 24) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(target.exercise)
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        Text(target.seance)
-                            .font(.caption)
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Nom de l'exercice")
+                            .font(.system(size: 12, weight: .bold))
+                            .tracking(1)
                             .foregroundColor(.gray)
+                            .padding(.horizontal)
+                        TextField("Nom", text: $name)
+                            .font(.system(size: 17))
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color(hex: "11111c"))
+                            .cornerRadius(10)
+                            .padding(.horizontal)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Schéma de sets/reps")
@@ -438,24 +454,25 @@ struct EditSchemeSheet: View {
                 }
                 .padding(.top, 24)
             }
-            .navigationTitle("Modifier le schéma")
+            .navigationTitle("Modifier l'exercice")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
-                        .foregroundColor(.gray)
+                    Button("Annuler") { dismiss() }.foregroundColor(.gray)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer") {
-                        onSave(scheme)
+                        let trimmed = name.trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty, !scheme.isEmpty else { return }
+                        onSave(trimmed, scheme)
                         dismiss()
                     }
-                    .foregroundColor(scheme.isEmpty ? .gray : .orange)
-                    .disabled(scheme.isEmpty)
+                    .foregroundColor(canSave ? .orange : .gray)
+                    .disabled(!canSave)
                 }
             }
         }
-        .onAppear { scheme = target.scheme }
+        .onAppear { name = target.exercise; scheme = target.scheme }
     }
 }
 
