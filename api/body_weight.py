@@ -4,15 +4,20 @@ from datetime import datetime
 def load_body_weight() -> list:
     return get_json("body_weight", [])
 
-def log_body_weight(poids: float, note: str = "", body_fat: float = None):
+def log_body_weight(poids: float, note: str = "", body_fat: float = None, waist_cm: float = None,
+                    arms_cm: float = None, chest_cm: float = None,
+                    thighs_cm: float = None, hips_cm: float = None):
     data  = load_body_weight()
     entry = {
         "date":  datetime.now().strftime("%Y-%m-%d"),
         "poids": poids,
         "note":  note
     }
-    if body_fat is not None:
-        entry["body_fat"] = body_fat
+    for key, val in [("body_fat", body_fat), ("waist_cm", waist_cm),
+                     ("arms_cm", arms_cm), ("chest_cm", chest_cm),
+                     ("thighs_cm", thighs_cm), ("hips_cm", hips_cm)]:
+        if val is not None:
+            entry[key] = val
     data.insert(0, entry)
     set_json("body_weight", data)
 

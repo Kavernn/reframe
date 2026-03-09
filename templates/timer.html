@@ -18,7 +18,7 @@
     padding: 24px 16px 48px;
   }
 
-  .timer-left, .timer-right { width: 100%; }
+  .timer-left, .timer-right { width: 100%; max-width: 100%; }
 
   @media (min-width: 768px) {
     .timer-layout {
@@ -512,40 +512,48 @@
 
   /* ── RESPONSIVE MOBILE ── */
   @media (max-width: 520px) {
-    body { padding: 10px 10px 80px; }
+    .timer-layout {
+      padding: 8px 0 24px;
+    }
 
     .ring-container {
-      width: min(240px, 72vw);
-      height: min(240px, 72vw);
-      margin-bottom: 18px;
+      width: min(220px, 68vw);
+      height: min(220px, 68vw);
+      margin-bottom: 16px;
     }
 
     .time-display { font-size: 3.8rem; letter-spacing: -1px; }
 
     .btn-play  { width: 68px; height: 68px; font-size: 1.3rem; }
     .btn-ctrl  { width: 54px; height: 54px; font-size: 1.2rem; }
-    .controls  { gap: 10px; margin-bottom: 18px; }
+    .controls  { gap: 10px; margin-bottom: 16px; }
 
     .settings-grid {
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
-    .setting-card { padding: 10px; }
+    .setting-card  { padding: 10px; }
     .setting-value { font-size: 1.6rem; margin-bottom: 8px; }
     .setting-btn   { height: 28px; font-size: 0.9rem; }
 
-    .presets { margin-bottom: 12px; }
-    .preset-btn { font-size: 0.72rem; padding: 5px 10px; }
+    .presets     { margin-bottom: 10px; }
+    .preset-btn  { font-size: 0.72rem; padding: 5px 10px; }
 
-    .phase-wrap { margin-bottom: 12px; }
+    .phase-wrap  { margin-bottom: 10px; }
     .history-dot { width: 10px; height: 10px; }
+
+    .options-grid { gap: 5px; }
+    .opt-btn      { padding: 8px 4px; }
+    .opt-label    { font-size: 0.48rem; }
+
+    .kbd-hints { display: none; }
   }
 
   @media (max-width: 360px) {
     .ring-container {
-      width: 200px;
-      height: 200px;
+      width: min(190px, 66vw);
+      height: min(190px, 66vw);
     }
     .time-display { font-size: 3.2rem; }
     .btn-play  { width: 60px; height: 60px; }

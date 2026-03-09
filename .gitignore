@@ -26,6 +26,17 @@ __pycache__/
 # Base de données locale (données utilisateur, ne pas versionner)
 .local_kv.db
 
+# Secrets
+.env
+.env.*
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Vercel
+.vercel/
+
 # Capacitor / Node
 node_modules/
 .npm/

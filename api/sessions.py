@@ -7,28 +7,37 @@ def load_sessions() -> dict:
 def save_sessions(sessions: dict):
     set_json("sessions", sessions)
 
-def log_session(date: str, rpe, comment: str, exos: list):
+def log_session(date: str, rpe, comment: str, exos: list, duration_min=None, energy_pre=None):
     sessions = load_sessions()
-    sessions[date] = {
+    entry = {
         "rpe":       rpe,
         "comment":   comment,
         "exos":      exos,
         "logged_at": datetime.now().strftime("%Y-%m-%d %H:%M")
     }
+    if duration_min is not None:
+        entry["duration_min"] = duration_min
+    if energy_pre is not None:
+        entry["energy_pre"] = energy_pre
+    sessions[date] = entry
     save_sessions(sessions)
 
 
-def log_second_session(date: str, rpe, comment: str, exos: list):
+def log_second_session(date: str, rpe, comment: str, exos: list, duration_min=None, energy_pre=None):
     """Ajoute une deuxième séance à la journée sans écraser la première."""
     sessions = load_sessions()
     entry = sessions.setdefault(date, {"exos": [], "logged_at": datetime.now().strftime("%Y-%m-%d %H:%M")})
-    extra = entry.setdefault("extra_sessions", [])
-    extra.append({
+    extra_entry = {
         "rpe":       rpe,
         "comment":   comment,
         "exos":      exos,
         "logged_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-    })
+    }
+    if duration_min is not None:
+        extra_entry["duration_min"] = duration_min
+    if energy_pre is not None:
+        extra_entry["energy_pre"] = energy_pre
+    entry.setdefault("extra_sessions", []).append(extra_entry)
     save_sessions(sessions)
 
 
