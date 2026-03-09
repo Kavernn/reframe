@@ -5,6 +5,7 @@ import Combine
 class TabBarVisibility: ObservableObject {
     static let shared = TabBarVisibility()
     @Published var visible = true
+    @Published var scrollingDown = false
 }
 
 struct ContentView: View {
@@ -14,7 +15,7 @@ struct ContentView: View {
     @State private var selectedTab    = 0
     @State private var keyboardUp     = false
 
-    private var showBar: Bool { tabState.visible && !keyboardUp }
+    private var showBar: Bool { tabState.visible && !keyboardUp && !tabState.scrollingDown }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -35,6 +36,8 @@ struct ContentView: View {
                 .toolbar(.hidden, for: .tabBar)
         }
         .ignoresSafeArea(edges: .bottom)
+        // Détection de scroll via window-level pan gesture (aucune modif des vues enfant)
+        .background(ScrollDirectionWatcher(tabState: tabState).allowsHitTesting(false))
         .overlay(alignment: .bottom) {
             FloatingTabBar(selected: $selectedTab)
                 .padding(.bottom, safeAreaBottom + 8)
@@ -71,6 +74,84 @@ struct ContentView: View {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first?.windows.first?.safeAreaInsets.bottom ?? 0
+    }
+}
+
+// MARK: - Scroll Direction Watcher
+// Détecte la direction du scroll via un UIPanGestureRecognizer sur la window.
+// Aucune modification des vues enfant nécessaire.
+struct ScrollDirectionWatcher: UIViewRepresentable {
+    let tabState: TabBarVisibility
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        DispatchQueue.main.async {
+            guard let window = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first?.windows.first else { return }
+            let pan = UIPanGestureRecognizer(target: context.coordinator,
+                                            action: #selector(Coordinator.handlePan(_:)))
+            pan.cancelsTouchesInView = false
+            pan.delegate = context.coordinator
+            window.addGestureRecognizer(pan)
+            context.coordinator.gesture = pan
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        if let g = coordinator.gesture { g.view?.removeGestureRecognizer(g) }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(tabState: tabState) }
+
+    class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        let tabState: TabBarVisibility
+        weak var gesture: UIPanGestureRecognizer?
+        private var resetTask: Task<Void, Never>?
+
+        init(tabState: TabBarVisibility) { self.tabState = tabState }
+
+        @objc func handlePan(_ g: UIPanGestureRecognizer) {
+            let vel = g.velocity(in: g.view)
+            // Ignore les gestes principalement horizontaux (swipe entre pages, etc.)
+            guard abs(vel.y) > abs(vel.x) else { return }
+
+            switch g.state {
+            case .changed:
+                resetTask?.cancel()
+                let down = vel.y < -80
+                let up   = vel.y >  80
+                if down || up {
+                    DispatchQueue.main.async {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            self.tabState.scrollingDown = down
+                        }
+                    }
+                }
+            case .ended, .cancelled:
+                resetTask?.cancel()
+                resetTask = Task {
+                    try? await Task.sleep(nanoseconds: 400_000_000) // 0.4s
+                    await MainActor.run {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            self.tabState.scrollingDown = false
+                        }
+                    }
+                }
+            default: break
+            }
+        }
+
+        // Reconnaissance simultanée avec les scroll views existants
+        func gestureRecognizer(_ gr: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+        func gestureRecognizer(_ gr: UIGestureRecognizer,
+                               shouldRequireFailureOf other: UIGestureRecognizer) -> Bool { false }
     }
 }
 
