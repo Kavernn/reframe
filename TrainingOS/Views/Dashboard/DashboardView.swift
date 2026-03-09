@@ -230,12 +230,12 @@ struct GreetingHeaderView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text("TRAINING")
+                    Text("VINCE")
                         .font(.system(size: 11, weight: .black))
                         .tracking(4)
                         .foregroundColor(.gray.opacity(0.7))
                     +
-                    Text("OS")
+                    Text("SEVEN")
                         .font(.system(size: 11, weight: .black))
                         .tracking(4)
                         .foregroundColor(.orange)

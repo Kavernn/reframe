@@ -630,6 +630,7 @@
 				DEVELOPMENT_TEAM = 3ZFPQW4FCD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = VinceSeven;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Prendre une photo de profil";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "TrainingOS lit vos données santé (pas, sommeil, fréquence cardiaque, HRV) pour remplir automatiquement vos entrées de récupération.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "TrainingOS peut écrire votre poids dans l'app Santé.";
@@ -667,6 +668,7 @@
 				DEVELOPMENT_TEAM = 3ZFPQW4FCD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = VinceSeven;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Prendre une photo de profil";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "TrainingOS lit vos données santé (pas, sommeil, fréquence cardiaque, HRV) pour remplir automatiquement vos entrées de récupération.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "TrainingOS peut écrire votre poids dans l'app Santé.";
