@@ -1,4 +1,5 @@
 import SwiftUI
+import AudioToolbox
 
 struct TimerView: View {
     @State private var workSecs = 40
@@ -236,6 +237,9 @@ struct TimerView: View {
             return
         }
         remaining -= 1
+        if remaining <= 3 && remaining > 0 {
+            AudioServicesPlaySystemSound(1057) // Tink — 3, 2, 1
+        }
         if remaining <= 0 { advance() }
     }
 

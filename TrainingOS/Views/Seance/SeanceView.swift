@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AudioToolbox
 
 struct SeanceView: View {
     @StateObject private var vm = SeanceViewModel()
@@ -1154,7 +1155,9 @@ struct RestTimerSheet: View {
             guard !Task.isCancelled else { break }
             if remaining > 0 {
                 remaining -= 1
-                if remaining == 0 {
+                if remaining <= 3 && remaining > 0 {
+                    AudioServicesPlaySystemSound(1057) // Tink — 3, 2, 1
+                } else if remaining == 0 {
                     isRunning = false
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 }
